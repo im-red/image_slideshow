@@ -1,0 +1,24 @@
+{
+    "manifest_version": 3,
+    "name": "Image Slideshow",
+    "version": "1.0",
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_title": "Start Slideshow",
+        "default_icon": {
+            "128": "icon.png"
+        }
+    },
+    "permissions": [
+        "downloads",
+        "storage",
+        "activeTab",
+        "scripting"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "options_page": "options.html"
+}

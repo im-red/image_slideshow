@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Slideshow Settings</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+
+        input[type="number"] {
+            width: 80px;
+        }
+
+        button {
+            display: block;
+            margin-top: 20px;
+            padding: 6px 12px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: flex-start;
+        }
+
+        .checkbox-group label {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Slideshow Settings</h1>
+
+    <label for="interval">自动播放间隔 (秒)</label>
+    <input id="interval" type="number" min="1">
+
+    <label for="minWidth">图片最小宽度 (px)</label>
+    <input id="minWidth" type="number" min="1">
+
+    <label for="minHeight">图片最小高度 (px)</label>
+    <input id="minHeight" type="number" min="1">
+
+    <label>显示哪些图片</label>
+    <div class="checkbox-group">
+        <label><input id="showBigImage" type="checkbox">大图</label>
+        <label><input id="showSmallImage" type="checkbox">小图</label>
+        <label><input id="showBgImage" type="checkbox">背景图</label>
+    </div>
+
+    <button id="saveBtn">保存</button>
+
+    <script src="options.js"></script>
+</body>
+
+</html>
