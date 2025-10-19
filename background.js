@@ -10,7 +10,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === 'downloadImages') {
         const { title, url, images } = msg;
         const safeTitle = title.replace(/[\\/:*?"<>|]+/g, "_");
-        const safeUrl = url.replace(/[\\/:*?"<>|]+/g, "_");
+        const safeUrl = url.replace(/[\.\\/:*?"<>|]+/g, "_");
         const folderName = `${safeTitle}_${safeUrl}`;
 
         for (const [i, imgUrl] of images.entries()) {
