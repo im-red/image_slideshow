@@ -20,7 +20,7 @@
     console.log(intervalMs, minWidth, minHeight, showBigImage, showSmallImage, showBgImage)
 
     function isSmallImage(img) {
-        return img.naturalWidth < minWidth || img.naturalHeight < minHeight;
+        return img.complete && (img.naturalWidth < minWidth || img.naturalHeight < minHeight);
     }
 
     const imageEls = [...document.images].filter(img => !img.src.startsWith("data:"));
@@ -128,7 +128,7 @@
     leftArrow.classList.add('slide-ignore');
     leftArrow.textContent = '<';
     leftArrow.style.cssText = `
-    color:white; font-size:24px; cursor:pointer; user-select:none; margin:0 5px;
+        color:white; font-size:24px; cursor:pointer; user-select:none; margin:0 5px;
     `;
     leftArrow.onclick = () => scrollThumbs(-1);
     thumbWrapper.appendChild(leftArrow);
@@ -192,6 +192,7 @@
         thumb.src = src;
         thumb.title = src;
         thumb.style.cssText = 'width:100px;height:100px;object-fit:cover;cursor:pointer;border-radius:4px';
+        thumb.loading = 'lazy';
         thumb.onclick = () => { switchToSlideshow(i); };
         galleryContainer.appendChild(thumb);
     });
@@ -216,6 +217,7 @@
             border-radius: 4px;
             opacity: 0.6;
         `;
+        thumb.loading = 'lazy';
         wrapper.appendChild(thumb);
 
         const overlay = document.createElement('div');
@@ -305,19 +307,16 @@
         cursor: pointer;
         font-size: 13px;
     `;
-    saveBtn.onclick = async () => {
-        try {
-            const response = await chrome.runtime.sendMessage({
-                type: 'downloadImages',
-                title: document.title,
-                url: location.href,
-                uniqueImages
-            });
+    saveBtn.onclick = () => {
+        chrome.runtime.sendMessage({
+            type: 'downloadImages',
+            title: document.title,
+            url: location.href,
+            images: uniqueImages
+        }, response => {
             console.log('Download request sent:', response);
-        } catch (err) {
-            console.error('Failed to send message:', err);
-        }
-    }
+        });
+    };
     topBtnContainer.appendChild(saveBtn);
 
     const exitBtn = document.createElement('button');
