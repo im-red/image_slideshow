@@ -463,6 +463,7 @@
     // 键盘控制
     ['keydown', 'keyup'].forEach(type => {
         window.addEventListener(type, e => {
+            if (e.code === 'F12') return;
             if (!window.__slideOverlay) return;
 
             e.stopPropagation();
