@@ -96,171 +96,28 @@
     let progressTimer = null;
     let startTime = 0;
 
-    // Slideshow 大图
-    const imgEl = document.createElement('img');
-    imgEl.classList.add('slide-ignore');
-    imgEl.style.cssText = `
-        max-width:90vw;
-        max-height:80vh;
-        object-fit:contain;
-        transition: opacity 0.3s;
-        border-radius:8px;
-        margin-bottom:10px;
-    `;
-    overlay.appendChild(imgEl);
-
-    // 底部缩略图容器
-    const thumbWrapper = document.createElement('div');
-    thumbWrapper.style.cssText = `
-        position: fixed;
-        bottom:0;
-        width:100%;
-        display:flex;
-        justify-content:center;
-        align-items:center;
-        background: #111;
-        padding:5px 0;
-        box-sizing:border-box;
-    `;
-    overlay.appendChild(thumbWrapper);
-
-    const leftArrow = document.createElement('div');
-    leftArrow.classList.add('slide-ignore');
-    leftArrow.textContent = '<';
-    leftArrow.style.cssText = `
-        color:white; font-size:24px; cursor:pointer; user-select:none; margin:0 5px;
-    `;
-    leftArrow.onclick = () => scrollThumbs(-1);
-    thumbWrapper.appendChild(leftArrow);
-
-    const thumbBar = document.createElement('div');
-    thumbBar.style.cssText = `
-        display:flex;
-        gap:5px;
-        overflow:hidden;
-        max-width:80%;
-    `;
-    thumbWrapper.appendChild(thumbBar);
-
-    const rightArrow = document.createElement('div');
-    rightArrow.classList.add('slide-ignore');
-    rightArrow.textContent = '>';
-    rightArrow.style.cssText = `
-        color:white; font-size:24px; cursor:pointer; user-select:none; margin:0 5px;
-    `;
-    rightArrow.onclick = () => scrollThumbs(1);
-    thumbWrapper.appendChild(rightArrow);
-
-    const thumbs = [];
-    uniqueImages.forEach((src, i) => {
-        const thumb = document.createElement('img');
-        thumb.classList.add('slide-ignore');
-        thumb.src = src;
-        thumb.style.cssText = `
-            width:60px;
-            height:60px;
-            object-fit:cover;
-            cursor:pointer;
-            border-radius:4px;
-            transition:border 0.2s;
-            flex-shrink:0;
-            box-sizing: border-box;
-        `;
-        thumb.onclick = () => showImage(i);
-        thumbBar.appendChild(thumb);
-        thumbs.push(thumb);
-    });
-
-    // Gallery 容器
-    const galleryContainer = document.createElement('div');
-    galleryContainer.style.cssText = `
-        display:none;
-        width:90vw;
-        padding:20px 0;
-        gap:5px;
-        justify-items:center;
-        grid-template-columns: repeat(auto-fill,minmax(120px,1fr));
-        display:grid;
-        overflow-x: auto;
-        scrollbar-width: none;
-    `;
-    overlay.appendChild(galleryContainer);
-
-    uniqueImages.forEach((src, i) => {
-        const thumb = document.createElement('img');
-        thumb.classList.add('slide-ignore');
-        thumb.src = src;
-        thumb.title = src;
-        thumb.style.cssText = 'width:100px;height:100px;object-fit:cover;cursor:pointer;border-radius:4px';
-        thumb.loading = 'lazy';
-        thumb.onclick = () => { switchToSlideshow(i); };
-        galleryContainer.appendChild(thumb);
-    });
-
-    filtered.forEach((src) => {
-        const wrapper = document.createElement('div');
-        wrapper.classList.add('slide-ignore');
-        wrapper.style.cssText = `
-            position: relative;
-            width: 100px;
-            height: 100px;
-            flex: 0 0 auto;
-        `;
-
-        const thumb = document.createElement('img');
-        thumb.src = src;
-        thumb.title = src;
-        thumb.style.cssText = `
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 4px;
-            opacity: 0.6;
-        `;
-        thumb.loading = 'lazy';
-        wrapper.appendChild(thumb);
-
-        const overlay = document.createElement('div');
-        overlay.style.cssText = `
-            position: absolute;
-            inset: 0;
-            border-radius: 4px;
-            pointer-events: none;
-            background: repeating-linear-gradient(
-                -45deg,
-                rgba(255, 0, 0, 0.3) 0,
-                rgba(255, 0, 0, 0.3) 8px,
-                rgba(255, 255, 255, 0.2) 8px,
-                rgba(255, 255, 255, 0.2) 16px
-            );
-        `;
-        wrapper.appendChild(overlay);
-
-        galleryContainer.appendChild(wrapper);
-    });
-
-    const topBar = document.createElement('div');
-    topBar.style.cssText = `
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
+    const topArea = document.createElement('div');
+    topArea.style.cssText = `
+        width: 100%;
         background: black;
         display: flex;
         justify-content: flex-end;
         align-items: center;
         padding: 10px;
         gap: 12px;
+        flex: 0 0 auto;
+        z-index: 2000000;
     `
-    overlay.appendChild(topBar);
+    overlay.appendChild(topArea);
 
     const topBtnContainer = document.createElement('div');
     topBtnContainer.style.cssText = `
         display: flex;
         align-items: center;
         gap: 12px;
+        padding-right: 12px;
     `;
-    topBar.appendChild(topBtnContainer);
+    topArea.appendChild(topBtnContainer);
 
     const playBtn = document.createElement('button');
     playBtn.classList.add('slide-ignore');
@@ -338,6 +195,161 @@
     };
     topBtnContainer.appendChild(exitBtn);
 
+    const contentArea = document.createElement('div');
+    contentArea.style.cssText = `
+        flex: 1 1 0;
+        min-height: 0;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    `
+    overlay.appendChild(contentArea);
+
+    // Slideshow 大图
+    const imgEl = document.createElement('img');
+    imgEl.classList.add('slide-ignore');
+    imgEl.style.cssText = `
+        max-width:90%;
+        max-height:80%;
+        object-fit:contain;
+        border-radius:8px;
+        margin-bottom:10px;
+        flex: 1 1 auto;
+    `;
+    contentArea.appendChild(imgEl);
+
+    // 底部缩略图容器
+    const thumbWrapper = document.createElement('div');
+    thumbWrapper.style.cssText = `
+        width:100%;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        background: #111;
+        padding:5px 0;
+        box-sizing:border-box;
+        flex: 0 0 auto;
+    `;
+    overlay.appendChild(thumbWrapper);
+
+    const leftArrow = document.createElement('div');
+    leftArrow.classList.add('slide-ignore');
+    leftArrow.textContent = '<';
+    leftArrow.style.cssText = `
+        color:white; font-size:24px; cursor:pointer; user-select:none; margin:0 5px;
+    `;
+    leftArrow.onclick = () => scrollThumbs(-1);
+    thumbWrapper.appendChild(leftArrow);
+
+    const thumbBar = document.createElement('div');
+    thumbBar.style.cssText = `
+        display:flex;
+        gap:5px;
+        overflow:hidden;
+        max-width:80%;
+    `;
+    thumbWrapper.appendChild(thumbBar);
+
+    const rightArrow = document.createElement('div');
+    rightArrow.classList.add('slide-ignore');
+    rightArrow.textContent = '>';
+    rightArrow.style.cssText = `
+        color:white; font-size:24px; cursor:pointer; user-select:none; margin:0 5px;
+    `;
+    rightArrow.onclick = () => scrollThumbs(1);
+    thumbWrapper.appendChild(rightArrow);
+
+    const thumbs = [];
+    uniqueImages.forEach((src, i) => {
+        const thumb = document.createElement('img');
+        thumb.classList.add('slide-ignore');
+        thumb.src = src;
+        thumb.style.cssText = `
+            width:60px;
+            height:60px;
+            object-fit:cover;
+            cursor:pointer;
+            border-radius:4px;
+            transition:border 0.2s;
+            flex-shrink:0;
+            box-sizing: border-box;
+        `;
+        thumb.onclick = () => showImage(i);
+        thumbBar.appendChild(thumb);
+        thumbs.push(thumb);
+    });
+
+    // Gallery 容器
+    const galleryContainer = document.createElement('div');
+    galleryContainer.style.cssText = `
+        flex: 1 1 auto;
+        overflow: auto;
+        width: 80vw;
+        min-height: 0;
+        padding: 20px 0;
+        gap: 5px;
+        display: grid;
+        justify-items: center;
+        align-content: start;
+        grid-template-columns: repeat(auto-fill,minmax(120px,1fr));
+        scrollbar-width: none;
+    `;
+    contentArea.appendChild(galleryContainer);
+
+    uniqueImages.forEach((src, i) => {
+        const thumb = document.createElement('img');
+        thumb.classList.add('slide-ignore');
+        thumb.src = src;
+        thumb.title = src;
+        thumb.style.cssText = 'width:100px;height:100px;object-fit:cover;cursor:pointer;border-radius:4px';
+        thumb.loading = 'lazy';
+        thumb.onclick = () => { switchToSlideshow(i); };
+        galleryContainer.appendChild(thumb);
+    });
+
+    filtered.forEach((src) => {
+        const wrapper = document.createElement('div');
+        wrapper.classList.add('slide-ignore');
+        wrapper.style.cssText = `
+            position: relative;
+            width: 100px;
+            height: 100px;
+            flex: 0 0 auto;
+        `;
+
+        const thumb = document.createElement('img');
+        thumb.src = src;
+        thumb.title = src;
+        thumb.style.cssText = `
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 4px;
+            opacity: 0.6;
+        `;
+        thumb.loading = 'lazy';
+        wrapper.appendChild(thumb);
+
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: absolute;
+            inset: 0;
+            border-radius: 4px;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                -45deg,
+                rgba(255, 0, 0, 0.3) 0,
+                rgba(255, 0, 0, 0.3) 8px,
+                rgba(255, 255, 255, 0.2) 8px,
+                rgba(255, 255, 255, 0.2) 16px
+            );
+        `;
+        wrapper.appendChild(overlay);
+
+        galleryContainer.appendChild(wrapper);
+    });
+
     const progressEl = document.createElement('div');
     progressEl.style.cssText = `
         position: absolute;
@@ -376,6 +388,7 @@
         mode = 'gallery';
         imgEl.style.display = 'none';
         thumbWrapper.style.display = 'none';
+        contentArea.style.alignItems = 'stretch';
         galleryContainer.style.display = 'grid';
         playBtn.style.display = 'none'
         switchBtn.textContent = 'Slideshow';
@@ -386,6 +399,7 @@
         mode = 'slideshow';
         imgEl.style.display = 'block';
         thumbWrapper.style.display = 'flex';
+        contentArea.style.alignItems = 'center';
         galleryContainer.style.display = 'none';
         playBtn.style.display = 'flex'
         switchBtn.textContent = 'Gallery';
