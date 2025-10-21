@@ -215,7 +215,6 @@
         object-fit:contain;
         border-radius:8px;
         margin-bottom:10px;
-        flex: 1 1 auto;
     `;
     contentArea.appendChild(imgEl);
 
@@ -283,9 +282,8 @@
     // Gallery 容器
     const galleryContainer = document.createElement('div');
     galleryContainer.style.cssText = `
-        flex: 1 1 auto;
         overflow: auto;
-        width: 80vw;
+        width: 80%;
         min-height: 0;
         padding: 20px 0;
         gap: 5px;
