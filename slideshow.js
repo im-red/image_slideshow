@@ -10,6 +10,7 @@
         chrome.storage.sync.get({ interval: 3, minWidth: 100, minHeight: 100, showBigImage: true, showSmallImage: false, showBgImage: false }, resolve)
     );
 
+    const autoPlayOnStart = prefs.autoPlayOnStart;
     const intervalMs = prefs.interval * 1000;
     const minWidth = prefs.minWidth;
     const minHeight = prefs.minHeight;
@@ -522,7 +523,8 @@
         });
     }
     Promise.all(uniqueImages.map(preloadImage)).then(imgEls => {
-        // 所有图片加载完成
-        startAutoPlay();
+        if (autoPlayOnStart) {
+            startAutoPlay();
+        }
     });
 })();
