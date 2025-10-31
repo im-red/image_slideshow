@@ -104,6 +104,7 @@
 
     const topArea = document.createElement('div');
     topArea.style.cssText = `
+        position: relative;
         width: 100%;
         background: black;
         display: flex;
@@ -115,6 +116,18 @@
         z-index: 2000000;
     `
     overlay.appendChild(topArea);
+
+    const indexText = document.createElement('div');
+    indexText.textContent = 'indexText';
+    indexText.style.cssText = `
+        position: absolute;
+        color: white;
+        font-size: 15px;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    `;
+    topArea.appendChild(indexText);
 
     const topBtnContainer = document.createElement('div');
     topBtnContainer.style.cssText = `
@@ -381,6 +394,7 @@
             resetAutoPlayTimer();
         }
         index = (i + uniqueImages.length) % uniqueImages.length;
+        indexText.textContent = `${index + 1} / ${uniqueImages.length}`
         imgEl.style.opacity = 0;
         setTimeout(() => {
             imgEl.src = uniqueImages[index];
@@ -391,6 +405,7 @@
 
     function switchToGallery() {
         mode = 'gallery';
+        indexText.style.display = 'none'
         imgEl.style.display = 'none';
         thumbWrapper.style.display = 'none';
         contentArea.style.alignItems = 'stretch';
@@ -402,6 +417,7 @@
 
     function switchToSlideshow(i) {
         mode = 'slideshow';
+        indexText.style.display = 'block'
         imgEl.style.display = 'block';
         thumbWrapper.style.display = 'flex';
         contentArea.style.alignItems = 'center';
