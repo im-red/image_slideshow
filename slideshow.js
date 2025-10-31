@@ -23,7 +23,11 @@
         return img.complete && (img.naturalWidth < minWidth || img.naturalHeight < minHeight);
     }
 
-    const imageEls = [...document.images].filter(img => !img.src.startsWith("data:"));
+    const imageEls = [...document.images].filter(img => img.src);
+
+    let imageUrls = imageEls.map(img => img.src);
+    imageUrls = [...new Set(imageUrls)];
+    imageUrls.sort();
 
     let bigImages = imageEls
         .filter(img => !isSmallImage(img))
@@ -62,7 +66,8 @@
         filtered.push(...bgImages);
     }
 
-    console.log(`imageEls: ${imageEls.length} bigImages: ${bigImages.length} smallImages: ${smallImages.length} bgImages: ${bgImages.length} images: ${images.length} filtered: ${filtered.length}`)
+    console.log(`imageUrls: ${imageUrls.length} bgImages: ${bgImages.length} bigImages: ${bigImages.length} smallImages: ${smallImages.length} images: ${images.length} filtered: ${filtered.length}`)
+    console.log("slideshow.js", imageUrls);
 
     filtered = [... new Set(filtered)];
     const uniqueImages = [...new Set(images)];
@@ -210,8 +215,8 @@
     const imgEl = document.createElement('img');
     imgEl.classList.add('slide-ignore');
     imgEl.style.cssText = `
-        max-width:90%;
-        max-height:80%;
+        max-width:95%;
+        max-height:95%;
         object-fit:contain;
         border-radius:8px;
         margin-bottom:10px;
@@ -264,6 +269,7 @@
         const thumb = document.createElement('img');
         thumb.classList.add('slide-ignore');
         thumb.src = src;
+        thumb.title = src;
         thumb.style.cssText = `
             width:60px;
             height:60px;
@@ -286,11 +292,11 @@
         width: 80%;
         min-height: 0;
         padding: 20px 0;
-        gap: 5px;
+        gap: 10px;
         display: grid;
         justify-items: center;
         align-content: start;
-        grid-template-columns: repeat(auto-fill,minmax(120px,1fr));
+        grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
         scrollbar-width: none;
     `;
     contentArea.appendChild(galleryContainer);
@@ -300,7 +306,7 @@
         thumb.classList.add('slide-ignore');
         thumb.src = src;
         thumb.title = src;
-        thumb.style.cssText = 'width:100px;height:100px;object-fit:cover;cursor:pointer;border-radius:4px';
+        thumb.style.cssText = 'width:200px;height:200px;object-fit:cover;cursor:pointer;border-radius:4px';
         thumb.loading = 'lazy';
         thumb.onclick = () => { switchToSlideshow(i); };
         galleryContainer.appendChild(thumb);
@@ -311,8 +317,8 @@
         wrapper.classList.add('slide-ignore');
         wrapper.style.cssText = `
             position: relative;
-            width: 100px;
-            height: 100px;
+            width: 200px;
+            height: 200px;
             flex: 0 0 auto;
         `;
 
