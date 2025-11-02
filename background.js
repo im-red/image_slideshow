@@ -20,6 +20,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             });
         }
         sendResponse({ ok: true });
+        return true;
+    }
+    if (msg.type === 'imageCount') {
+        const tabId = sender.tab?.id;
+        if (tabId) {
+            chrome.action.setBadgeText({
+                text: msg.count > 0 ? String(msg.count) : '',
+                tabId
+            });
+            chrome.action.setBadgeBackgroundColor({
+                color: '#FF4D4D'
+            });
+        }
+        return true;
     }
     return true;
 });

@@ -20,5 +20,16 @@
     "host_permissions": [
         "<all_urls>"
     ],
-    "options_page": "options.html"
+    "options_page": "options.html",
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "watcher.js"
+            ],
+            "run_at": "document_idle"
+        }
+    ]
 }

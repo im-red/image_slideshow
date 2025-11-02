@@ -89,6 +89,7 @@
         align-items: center;
         overflow: hidden;
     `;
+    overlay.dataset.slideOverlay = "1";
     document.body.appendChild(overlay);
     document.body.style.overflow = 'hidden';
 
@@ -226,16 +227,16 @@
     overlay.appendChild(contentArea);
 
     // Slideshow 大图
-    const imgEl = document.createElement('img');
-    imgEl.classList.add('slide-ignore');
-    imgEl.style.cssText = `
+    const mainImage = document.createElement('img');
+    mainImage.classList.add('slide-ignore');
+    mainImage.style.cssText = `
         max-width:95%;
         max-height:95%;
         object-fit:contain;
         border-radius:8px;
         margin-bottom:10px;
     `;
-    contentArea.appendChild(imgEl);
+    contentArea.appendChild(mainImage);
 
     // 底部缩略图容器
     const thumbWrapper = document.createElement('div');
@@ -390,15 +391,18 @@
     }
 
     function showImage(i) {
+        if (uniqueImages.length === 0) {
+            return;
+        }
         if (autoPlay) {
             resetAutoPlayTimer();
         }
         index = (i + uniqueImages.length) % uniqueImages.length;
         indexText.textContent = `${index + 1} / ${uniqueImages.length}`
-        imgEl.style.opacity = 0;
+        mainImage.style.opacity = 0;
         setTimeout(() => {
-            imgEl.src = uniqueImages[index];
-            imgEl.onload = () => imgEl.style.opacity = 1;
+            mainImage.src = uniqueImages[index];
+            mainImage.onload = () => mainImage.style.opacity = 1;
             highlightThumb(index);
         }, 0);
     }
@@ -406,7 +410,7 @@
     function switchToGallery() {
         mode = 'gallery';
         indexText.style.display = 'none'
-        imgEl.style.display = 'none';
+        mainImage.style.display = 'none';
         thumbWrapper.style.display = 'none';
         contentArea.style.alignItems = 'stretch';
         galleryContainer.style.display = 'grid';
@@ -418,7 +422,7 @@
     function switchToSlideshow(i) {
         mode = 'slideshow';
         indexText.style.display = 'block'
-        imgEl.style.display = 'block';
+        mainImage.style.display = 'block';
         thumbWrapper.style.display = 'flex';
         contentArea.style.alignItems = 'center';
         galleryContainer.style.display = 'none';
