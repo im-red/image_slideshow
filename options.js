@@ -42,6 +42,6 @@ saveBtn.addEventListener('click', () => {
     };
 
     chrome.storage.sync.set(prefs, () => {
-        alert('保存成功！');
+        alert('Saved!');
     });
 });

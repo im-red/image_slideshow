@@ -119,7 +119,7 @@
     overlay.appendChild(topArea);
 
     const indexText = document.createElement('div');
-    indexText.textContent = 'indexText';
+    indexText.textContent = '';
     indexText.style.cssText = `
         position: absolute;
         color: white;
@@ -173,7 +173,7 @@
     switchBtn.onclick = switchMode;
 
     const saveBtn = document.createElement('button');
-    saveBtn.textContent = '💾 保存';
+    saveBtn.textContent = '💾 Save';
     saveBtn.classList.add('slide-ignore');
     saveBtn.style.cssText = `
         padding: 6px 12px;
@@ -447,7 +447,7 @@
         if (mode === 'gallery') return;
         if (autoPlay) return;
         autoPlay = true;
-        playBtn.textContent = '暂停 ❚❚';
+        playBtn.textContent = 'Pause ❚❚';
         autoTimer = setInterval(() => scrollThumbs(1), autoPlayInterval);
 
         startTime = performance.now();
@@ -457,7 +457,7 @@
 
     function stopAutoPlay() {
         autoPlay = false;
-        playBtn.textContent = '播放 ▶';
+        playBtn.textContent = 'Play ▶';
         if (autoTimer) {
             clearInterval(autoTimer);
             autoTimer = null;
