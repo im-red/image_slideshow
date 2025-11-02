@@ -18,7 +18,7 @@
     const showSmallImage = prefs.showSmallImage;
     const showBgImage = prefs.showBgImage;
 
-    console.log(prefs)
+    console.log(prefs);
 
     function isSmallImage(img) {
         return img.complete && (img.naturalWidth < minWidth || img.naturalHeight < minHeight);
@@ -398,7 +398,7 @@
             resetAutoPlayTimer();
         }
         index = (i + uniqueImages.length) % uniqueImages.length;
-        indexText.textContent = `${index + 1} / ${uniqueImages.length}`
+        indexText.textContent = `${index + 1} / ${uniqueImages.length}(+${filtered.length})`
         mainImage.style.opacity = 0;
         setTimeout(() => {
             mainImage.src = uniqueImages[index];
@@ -409,7 +409,7 @@
 
     function switchToGallery() {
         mode = 'gallery';
-        indexText.style.display = 'none'
+        indexText.textContent = `${uniqueImages.length}(+${filtered.length})`
         mainImage.style.display = 'none';
         thumbWrapper.style.display = 'none';
         contentArea.style.alignItems = 'stretch';
@@ -421,7 +421,6 @@
 
     function switchToSlideshow(i) {
         mode = 'slideshow';
-        indexText.style.display = 'block'
         mainImage.style.display = 'block';
         thumbWrapper.style.display = 'flex';
         contentArea.style.alignItems = 'center';
@@ -502,7 +501,7 @@
     // 键盘控制
     ['keydown', 'keyup'].forEach(type => {
         window.addEventListener(type, e => {
-            if (e.code === 'F12') return;
+            if (e.code === 'F12' || e.code === 'F11') return;
             if (!window.__slideOverlay) return;
 
             e.stopPropagation();
@@ -533,16 +532,23 @@
         }
     });
 
-    switchToSlideshow(0);
-    function preloadImage(src) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.src = src;
-            img.onload = () => resolve(img);
-            img.onerror = () => resolve(img); // 加载失败也算完成
-        });
+    if (uniqueImages.length === 0) {
+        switchBtn.style.display = 'none';
+        switchToGallery();
+        return;
     }
-    Promise.all(uniqueImages.map(preloadImage)).then(imgEls => {
+
+    switchToSlideshow(0);
+    if (uniqueImages.length === 1) {
+        return;
+    }
+
+    Promise.all(uniqueImages.map(src => new Promise((resolve, reject) => {
+        const img = new Image();
+        img.src = src;
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(img); // 加载失败也算完成
+    }))).then(imgEls => {
         if (autoPlayOnStart) {
             startAutoPlay();
         }
