@@ -398,7 +398,7 @@
             resetAutoPlayTimer();
         }
         index = (i + uniqueImages.length) % uniqueImages.length;
-        indexText.textContent = `${index + 1} / ${uniqueImages.length}(+${filtered.length})`
+        indexText.textContent = `${index + 1} / ${uniqueImages.length}`
         mainImage.style.opacity = 0;
         setTimeout(() => {
             mainImage.src = uniqueImages[index];
@@ -409,7 +409,7 @@
 
     function switchToGallery() {
         mode = 'gallery';
-        indexText.textContent = `${uniqueImages.length}(+${filtered.length})`
+        indexText.textContent = `${uniqueImages.length}(+${filtered.length} filtered)`
         mainImage.style.display = 'none';
         thumbWrapper.style.display = 'none';
         contentArea.style.alignItems = 'stretch';
