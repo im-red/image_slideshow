@@ -7,7 +7,7 @@
     }
 
     const prefs = await new Promise(resolve =>
-        chrome.storage.sync.get({ interval: 3, minWidth: 100, minHeight: 100, showBigImage: true, showSmallImage: false, showBgImage: false }, resolve)
+        chrome.storage.sync.get({ autoPlayOnStart: true, interval: 3, minWidth: 100, minHeight: 100, showBigImage: true, showSmallImage: false, showBgImage: false }, resolve)
     );
 
     const autoPlayOnStart = prefs.autoPlayOnStart;
@@ -18,7 +18,7 @@
     const showSmallImage = prefs.showSmallImage;
     const showBgImage = prefs.showBgImage;
 
-    console.log(intervalMs, minWidth, minHeight, showBigImage, showSmallImage, showBgImage)
+    console.log(prefs)
 
     function isSmallImage(img) {
         return img.complete && (img.naturalWidth < minWidth || img.naturalHeight < minHeight);
