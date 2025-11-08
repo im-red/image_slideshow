@@ -1,3 +1,14 @@
+(function enhanceConsoleLog() {
+    const originalLog = console.log;
+    console.log = function (...args) {
+        const timestamp = new Date().toISOString();
+        const stack = new Error().stack;
+        const callerLine = stack.split('\n')[2]?.trim() || '';
+        const location = callerLine.replace(/^at\s+/, '');
+        originalLog(`[${timestamp}] [${location}]`, ...args);
+    };
+})();
+
 (async function () {
     if (window.__slideOverlay) {
         window.__slideOverlay.remove();
@@ -279,26 +290,37 @@
     rightArrow.onclick = () => scrollThumbs(1);
     thumbWrapper.appendChild(rightArrow);
 
-    const thumbs = [];
-    uniqueImages.forEach((src, i) => {
-        const thumb = document.createElement('img');
-        thumb.classList.add('slide-ignore');
-        thumb.src = src;
-        thumb.title = src;
-        thumb.style.cssText = `
-            width:60px;
-            height:60px;
-            object-fit:cover;
-            cursor:pointer;
-            border-radius:4px;
-            transition:border 0.2s;
-            flex-shrink:0;
-            box-sizing: border-box;
-        `;
-        thumb.onclick = () => showImage(i);
-        thumbBar.appendChild(thumb);
-        thumbs.push(thumb);
-    });
+    async function createThumb(src, maxWidth = 200, maxHeight = 200, quality = 0.7) {
+        return new Promise(resolve => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+                // 计算等比例缩放后的宽高
+                let { width, height } = img;
+                const scale = Math.min(maxWidth / width, maxHeight / height, 1);
+                width = Math.round(width * scale);
+                height = Math.round(height * scale);
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob(blob => {
+                    if (blob) {
+                        resolve(URL.createObjectURL(blob));
+                    } else {
+                        // 某些情况下 toBlob 可能返回 null
+                        resolve(src);
+                    }
+                }, 'image/jpeg', quality);
+            };
+            img.onerror = () => resolve(src);
+            img.src = src;
+        });
+    }
 
     // Gallery 容器
     const galleryContainer = document.createElement('div');
@@ -316,16 +338,66 @@
     `;
     contentArea.appendChild(galleryContainer);
 
-    uniqueImages.forEach((src, i) => {
+    const loadingPlaceholder = `
+        data:image/svg+xml;base64,${btoa(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
+        <rect width="60" height="60" fill="#111"/>
+        <circle cx="30" cy="30" r="10" fill="none" stroke="#888" stroke-width="3">
+            <animateTransform attributeName="transform" type="rotate" from="0 30 30" to="360 30 30" dur="0.8s" repeatCount="indefinite"/>
+        </circle>
+        </svg>
+    `)}`;
+
+    const slideShowThumbs = [];
+    for (let i = 0; i < uniqueImages.length; i++) {
         const thumb = document.createElement('img');
         thumb.classList.add('slide-ignore');
-        thumb.src = src;
-        thumb.title = src;
-        thumb.style.cssText = 'width:200px;height:200px;object-fit:cover;cursor:pointer;border-radius:4px';
-        thumb.loading = 'lazy';
-        thumb.onclick = () => { switchToSlideshow(i); };
+        thumb.src = loadingPlaceholder;
+        thumb.title = uniqueImages[i];
+        thumb.style.cssText = `
+            width:60px;
+            height:60px;
+            object-fit:cover;
+            cursor:pointer;
+            border-radius:4px;
+            background:#111;
+            flex-shrink:0;
+            transition:border 0.2s;
+            box-sizing:border-box;
+        `;
+        thumbBar.appendChild(thumb);
+        slideShowThumbs.push(thumb);
+    }
+
+    const galleryThumbs = [];
+    for (let i = 0; i < uniqueImages.length; i++) {
+        const thumb = document.createElement('img');
+        thumb.classList.add('slide-ignore');
+        thumb.src = loadingPlaceholder;
+        thumb.title = uniqueImages[i];
+        thumb.style.cssText = `
+            width:200px;
+            height:200px;
+            object-fit:cover;
+            cursor:pointer;
+            border-radius:4px;
+            background:#000;
+            flex-shrink:0;
+            transition:border 0.2s;
+            box-sizing:border-box;
+        `;
         galleryContainer.appendChild(thumb);
-    });
+        galleryThumbs.push(thumb);
+    }
+
+    for (let i = 0; i < uniqueImages.length; i++) {
+        createThumb(uniqueImages[i]).then(thumbSrc => {
+            slideShowThumbs[i].src = thumbSrc;
+            slideShowThumbs[i].onclick = () => showImage(i);
+            galleryThumbs[i].src = thumbSrc;
+            galleryThumbs[i].onclick = () => switchToSlideshow(i);
+        });
+    }
 
     filtered.forEach((src) => {
         const wrapper = document.createElement('div');
@@ -347,7 +419,6 @@
             border-radius: 4px;
             opacity: 0.6;
         `;
-        thumb.loading = 'lazy';
         wrapper.appendChild(thumb);
 
         const overlay = document.createElement('div');
@@ -383,11 +454,11 @@
     overlay.appendChild(progressEl);
 
     function highlightThumb(i) {
-        thumbs.forEach((t, j) => {
+        slideShowThumbs.forEach((t, j) => {
             t.style.border = (j === i) ? '3px solid #0f0' : 'none';
         });
         // 自动滚动缩略图到中间
-        thumbs[i].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+        slideShowThumbs[i].scrollIntoView({ behavior: 'smooth', inline: 'center' });
     }
 
     function showImage(i) {
@@ -471,11 +542,9 @@
         const elapsed = now - startTime;
         const percent = Math.min(elapsed / autoPlayInterval, 1);
         progressEl.style.width = `${(1 - percent) * 100}%`;
-        // console.log(progressEl.style.width)
         if (percent < 1 && autoPlay) {
             progressTimer = requestAnimationFrame(updateProgress);
         } else if (autoPlay) {
-            // 下一轮重新开始
             startTime = performance.now();
             progressEl.style.width = '100%';
             progressTimer = requestAnimationFrame(updateProgress);
@@ -498,7 +567,6 @@
         progressTimer = requestAnimationFrame(updateProgress);
     }
 
-    // 键盘控制
     ['keydown', 'keyup'].forEach(type => {
         window.addEventListener(type, e => {
             if (e.code === 'F12' || e.code === 'F11') return;
@@ -509,7 +577,7 @@
             if (e.type == 'keyup') {
                 return;
             }
-            if (e.code === 'Space') { // 空格切换自动播放
+            if (e.code === 'Space') {
                 if (mode === 'slideshow') toggleAutoPlay();
                 return;
             }
@@ -523,7 +591,6 @@
         }, true);
     });
 
-    // 点击切换 Slideshow
     overlay.addEventListener('click', e => {
         if (mode === 'slideshow') {
             if (e.target.closest('.slide-ignore')) return;
