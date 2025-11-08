@@ -15,7 +15,8 @@
         "downloads",
         "storage",
         "activeTab",
-        "scripting"
+        "scripting",
+        "<all_urls>"
     ],
     "host_permissions": [
         "<all_urls>"
@@ -36,9 +37,19 @@
                 "<all_urls>"
             ],
             "js": [
-                "enhanceConsoleLog.js"
+                "enhanceConsole.js"
             ],
             "run_at": "document_end"
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "enhanceConsole.js"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
         }
     ]
 }

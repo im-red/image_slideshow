@@ -302,33 +302,16 @@
 
     async function createThumb(src, maxWidth = 200, maxHeight = 200, quality = 0.7) {
         return new Promise(resolve => {
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.onload = () => {
-                // 计算等比例缩放后的宽高
-                let { width, height } = img;
-                const scale = Math.min(maxWidth / width, maxHeight / height, 1);
-                width = Math.round(width * scale);
-                height = Math.round(height * scale);
-
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-
-                canvas.toBlob(blob => {
-                    if (blob) {
-                        resolve(URL.createObjectURL(blob));
-                    } else {
-                        // 某些情况下 toBlob 可能返回 null
-                        resolve(src);
-                    }
-                }, 'image/jpeg', quality);
-            };
-            img.onerror = () => resolve(src);
-            img.src = src;
+            chrome.runtime.sendMessage({
+                type: "fetchImageThumb",
+                url: src,
+                maxW: maxWidth,
+                maxH: maxHeight,
+                quality: quality
+            }, response => {
+                console.log('Received thumb response for', src, response.blobUrl);
+                resolve(response.blobUrl);  // 已经是同源小图
+            });
         });
     }
 
