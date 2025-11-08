@@ -1,14 +1,3 @@
-(function enhanceConsoleLog() {
-    const originalLog = console.log;
-    console.log = function (...args) {
-        const timestamp = new Date().toISOString();
-        const stack = new Error().stack;
-        const callerLine = stack.split('\n')[2]?.trim() || '';
-        const location = callerLine.replace(/^at\s+/, '');
-        originalLog(`[${timestamp}] [${location}]`, ...args);
-    };
-})();
-
 (async function () {
     if (window.__slideOverlay) {
         window.__slideOverlay.remove();
@@ -32,58 +21,89 @@
     console.log(prefs);
 
     function isSmallImage(img) {
+        // if (!img.complete) {
+        //     console.log('Image not loaded yet:', img.src);
+        // }
         return img.complete && (img.naturalWidth < minWidth || img.naturalHeight < minHeight);
     }
 
-    const imageEls = [...document.images].filter(img => img.src);
+    function collectImages() {
+        const imageEls = [...document.images].filter(img => img.src);
 
-    let imageUrls = imageEls.map(img => img.src);
-    imageUrls = [...new Set(imageUrls)];
-    imageUrls.sort();
+        let imageUrls = imageEls.map(img => img.src);
+        imageUrls = [...new Set(imageUrls)];
+        imageUrls.sort();
 
-    let bigImages = imageEls
-        .filter(img => !isSmallImage(img))
-        .map(img => img.src);
-    bigImages = [...new Set(bigImages)];
+        let bigImages = [];
+        let smallImages = [];
 
-    let smallImages = imageEls
-        .filter(img => isSmallImage(img))
-        .map(img => img.src);
-    smallImages = [...new Set(smallImages)];
+        imageEls.forEach(img => {
+            if (isSmallImage(img)) {
+                // console.log('Small image detected:', img.src, img.naturalWidth, img.naturalHeight);
+                smallImages.push(img.src);
+            } else {
+                // console.log('Big image detected:', img.src, img.naturalWidth, img.naturalHeight);
+                bigImages.push(img.src);
+            }
+        });
 
-    let bgImages = [...document.querySelectorAll('*')]
-        .map(el => {
-            const bg = getComputedStyle(el).backgroundImage;
-            const match = bg && bg !== 'none' && bg.match(/url\(["']?(.*?)["']?\)/);
-            return match ? match[1] : null;
-        })
-        .filter(Boolean);
-    bgImages = [...new Set(bgImages)];
+        bigImages = [...new Set(bigImages)];
+        smallImages = [...new Set(smallImages)];
 
-    let images = []
-    let filtered = []
-    if (showBigImage) {
-        images.push(...bigImages);
-    } else {
-        filtered.push(...bigImages);
+        let bgImages = [...document.querySelectorAll('*')]
+            .map(el => {
+                const bg = getComputedStyle(el).backgroundImage;
+                const match = bg && bg !== 'none' && bg.match(/url\(["']?(.*?)["']?\)/);
+                return match ? match[1] : null;
+            })
+            .filter(Boolean);
+        bgImages = [...new Set(bgImages)];
+
+        let shownImages = []
+        let filteredImages = []
+        if (showBigImage) {
+            shownImages.push(...bigImages);
+        } else {
+            filteredImages.push(...bigImages);
+        }
+        if (showSmallImage) {
+            shownImages.push(...smallImages);
+        } else {
+            filteredImages.push(...smallImages);
+        }
+        if (showBgImage) {
+            shownImages.push(...bgImages);
+        } else {
+            filteredImages.push(...bgImages);
+        }
+
+        console.log(`imageEls: ${imageEls.length} imageUrls: ${imageUrls.length} bigImages: ${bigImages.length} smallImages: ${smallImages.length}`);
+        console.log(`bgImages: ${bgImages.length}`);
+        console.log(`shownImages: ${shownImages.length} filteredImages: ${filteredImages.length}`);
+
+        // console.log('imageUrls', imageUrls);
+        // console.log('bgImages', bgImages);
+        // console.log('shownImages', shownImages);
+        // console.log('filteredImages', filteredImages);
+
+        shownImages = [...new Set(shownImages)];
+        filteredImages = [... new Set(filteredImages)];
+
+        return { shownImages, filteredImages };
     }
-    if (showSmallImage) {
-        images.push(...smallImages);
-    } else {
-        filtered.push(...smallImages);
-    }
-    if (showBgImage) {
-        images.push(...bgImages);
-    } else {
-        filtered.push(...bgImages);
-    }
 
-    console.log(`imageUrls: ${imageUrls.length} bgImages: ${bgImages.length} bigImages: ${bigImages.length} smallImages: ${smallImages.length} images: ${images.length} filtered: ${filtered.length}`)
-    console.log("slideshow.js", imageUrls);
+    const { shownImages, filteredImages } = collectImages();
+    if (!filteredImages.length && !shownImages.length) return;
 
-    filtered = [... new Set(filtered)];
-    const uniqueImages = [...new Set(images)];
-    if (!filtered.length && !uniqueImages.length) return;
+    let mode = 'slideshow';
+    let index = 0;
+
+    // 自动播放状态
+    let autoPlay = false;
+    let autoPlayInterval = intervalMs; // 默认间隔3秒
+    let autoTimer = null;
+    let progressTimer = null;
+    let startTime = 0;
 
     // 创建覆盖层
     const overlay = document.createElement('div');
@@ -103,16 +123,6 @@
     overlay.dataset.slideOverlay = "1";
     document.body.appendChild(overlay);
     document.body.style.overflow = 'hidden';
-
-    let mode = 'slideshow';
-    let index = 0;
-
-    // 自动播放状态
-    let autoPlay = false;
-    let autoPlayInterval = intervalMs; // 默认间隔3秒
-    let autoTimer = null;
-    let progressTimer = null;
-    let startTime = 0;
 
     const topArea = document.createElement('div');
     topArea.style.cssText = `
@@ -200,7 +210,7 @@
             type: 'downloadImages',
             title: document.title,
             url: location.href,
-            images: uniqueImages
+            images: shownImages
         }, response => {
             console.log('Download request sent:', response);
         });
@@ -349,11 +359,11 @@
     `)}`;
 
     const slideShowThumbs = [];
-    for (let i = 0; i < uniqueImages.length; i++) {
+    for (let i = 0; i < shownImages.length; i++) {
         const thumb = document.createElement('img');
         thumb.classList.add('slide-ignore');
         thumb.src = loadingPlaceholder;
-        thumb.title = uniqueImages[i];
+        thumb.title = shownImages[i];
         thumb.style.cssText = `
             width:60px;
             height:60px;
@@ -370,11 +380,11 @@
     }
 
     const galleryThumbs = [];
-    for (let i = 0; i < uniqueImages.length; i++) {
+    for (let i = 0; i < shownImages.length; i++) {
         const thumb = document.createElement('img');
         thumb.classList.add('slide-ignore');
         thumb.src = loadingPlaceholder;
-        thumb.title = uniqueImages[i];
+        thumb.title = shownImages[i];
         thumb.style.cssText = `
             width:200px;
             height:200px;
@@ -390,8 +400,8 @@
         galleryThumbs.push(thumb);
     }
 
-    for (let i = 0; i < uniqueImages.length; i++) {
-        createThumb(uniqueImages[i]).then(thumbSrc => {
+    for (let i = 0; i < shownImages.length; i++) {
+        createThumb(shownImages[i]).then(thumbSrc => {
             slideShowThumbs[i].src = thumbSrc;
             slideShowThumbs[i].onclick = () => showImage(i);
             galleryThumbs[i].src = thumbSrc;
@@ -399,7 +409,7 @@
         });
     }
 
-    filtered.forEach((src) => {
+    filteredImages.forEach((src) => {
         const wrapper = document.createElement('div');
         wrapper.classList.add('slide-ignore');
         wrapper.style.cssText = `
@@ -462,17 +472,17 @@
     }
 
     function showImage(i) {
-        if (uniqueImages.length === 0) {
+        if (shownImages.length === 0) {
             return;
         }
         if (autoPlay) {
             resetAutoPlayTimer();
         }
-        index = (i + uniqueImages.length) % uniqueImages.length;
-        indexText.textContent = `${index + 1} / ${uniqueImages.length}`
+        index = (i + shownImages.length) % shownImages.length;
+        indexText.textContent = `${index + 1} / ${shownImages.length}`
         mainImage.style.opacity = 0;
         setTimeout(() => {
-            mainImage.src = uniqueImages[index];
+            mainImage.src = shownImages[index];
             mainImage.onload = () => mainImage.style.opacity = 1;
             highlightThumb(index);
         }, 0);
@@ -480,7 +490,7 @@
 
     function switchToGallery() {
         mode = 'gallery';
-        indexText.textContent = `${uniqueImages.length}(+${filtered.length} filtered)`
+        indexText.textContent = `${shownImages.length}(+${filteredImages.length} filtered)`
         mainImage.style.display = 'none';
         thumbWrapper.style.display = 'none';
         contentArea.style.alignItems = 'stretch';
@@ -599,18 +609,18 @@
         }
     });
 
-    if (uniqueImages.length === 0) {
+    if (shownImages.length === 0) {
         switchBtn.style.display = 'none';
         switchToGallery();
         return;
     }
 
     switchToSlideshow(0);
-    if (uniqueImages.length === 1) {
+    if (shownImages.length === 1) {
         return;
     }
 
-    Promise.all(uniqueImages.map(src => new Promise((resolve, reject) => {
+    Promise.all(shownImages.map(src => new Promise((resolve, reject) => {
         const img = new Image();
         img.src = src;
         img.onload = () => resolve(img);

@@ -29,7 +29,16 @@
             "js": [
                 "watcher.js"
             ],
-            "run_at": "document_idle"
+            "run_at": "document_end"
+        },
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "enhanceConsoleLog.js"
+            ],
+            "run_at": "document_end"
         }
     ]
 }
