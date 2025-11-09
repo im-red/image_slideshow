@@ -67,12 +67,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
     if (msg.type === 'fetchImageThumb') {
         const url = msg.url;
+        chrome.tabs.sendMessage(sender.tab.id, {
+            type: "imageDownloading",
+            url
+        });
         fetch(url)
-            .then(res => res.blob())
-            .then(blob => createThumbnail(blob, msg.maxW, msg.maxH, msg.quality))
-            .then(dataURL => sendResponse({ blobUrl: dataURL }))
+            .then(r => r.blob())
+            .then(async blob => {
+                chrome.tabs.sendMessage(sender.tab.id, {
+                    type: "imageReady",
+                    url
+                });
+                console.log("thumb fetched:", url);
+                const thumbDataUrl = await createThumbnail(blob, msg.maxW, msg.maxH, msg.quality);
+                sendResponse({ blobUrl: thumbDataUrl });
+            })
             .catch(err => {
-                console.error("thumbnail failed:", err, url);
+                console.error("thumb error:", err, url);
                 sendResponse({ blobUrl: url });
             });
         return true;

@@ -1,4 +1,30 @@
 (async function () {
+    if (!window.__slideShowInitialized) {
+        window.__slideShowInitialized = true;
+        chrome.runtime.onMessage.addListener((msg) => {
+            console.log('Background received message:', msg);
+            if (msg.type === "imageDownloading") {
+                showDownloadingPlaceholder(msg.url);
+            }
+            if (msg.type === "imageReady") {
+                showReadyPlaceholder(msg.url);
+            }
+        });
+
+        const style = document.createElement('style');
+        style.textContent = `
+            #slideOverlay img.thumb-main-image-loading {
+                opacity: 0.5;
+            }
+            #slideOverlay img.thumb-main-image-ready {
+                opacity: 1;
+            }
+            #slideOverlay img.thumb-main-image-failed {
+                opacity: 0.2;
+            }
+        `;
+        document.head.appendChild(style);
+    }
     if (window.__slideOverlay) {
         window.__slideOverlay.remove();
         window.__slideOverlay = null;
@@ -20,17 +46,75 @@
 
     console.log(prefs);
 
+    const loadingPlaceholder = `data:image/svg+xml;base64,${btoa(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
+            <circle cx="30" cy="30" r="10" fill="none" stroke="#888" stroke-width="3" stroke-dasharray="20 42" stroke-linecap="round">
+                <animateTransform attributeName="transform" type="rotate" from="0 30 30" to="360 30 30" dur="1s" repeatCount="indefinite"/>
+            </circle>
+        </svg>
+    `)}`;
+
+    const downloadingPlaceholder = `data:image/svg+xml;base64,${btoa(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
+            <circle cx="30" cy="30" r="10" fill="none" stroke="#3498db" stroke-width="3" stroke-dasharray="20 42" stroke-linecap="round">
+                <animateTransform attributeName="transform" type="rotate" from="0 30 30" to="360 30 30" dur="1s" repeatCount="indefinite"/>
+            </circle>
+        </svg>
+    `)}`;
+
+    const readyPlaceholder = `data:image/svg+xml;base64,${btoa(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
+            <circle cx="30" cy="30" r="10" fill="none" stroke="#2ecc71" stroke-width="3" stroke-dasharray="20 42" stroke-linecap="round">
+                <animateTransform attributeName="transform" type="rotate" from="0 30 30" to="360 30 30" dur="1s" repeatCount="indefinite"/>
+            </circle>
+        </svg>
+    `)}`;
+
+    function findThumbElementByUrl(url) {
+        const overlay = document.querySelector('[data-slide-overlay]');
+        if (!overlay) return [];
+        return Array.from(overlay.querySelectorAll('img.thumb')).filter(img => {
+            return img.title === url || img.dataset.src === url;
+        });
+    }
+
+    function showDownloadingPlaceholder(url) {
+        const els = findThumbElementByUrl(url);
+        for (const el of els) {
+            if (el) {
+                el.src = downloadingPlaceholder;
+            }
+        }
+    }
+
+    function showReadyPlaceholder(url) {
+        const els = findThumbElementByUrl(url);
+        for (const el of els) {
+            if (el) {
+                el.src = readyPlaceholder;
+            }
+        }
+    }
+
+    function setThumbMainImageState(url, state) {
+        console.log(url, state);
+        const els = findThumbElementByUrl(url);
+        for (const el of els) {
+            if (el) {
+                el.classList.remove('thumb-main-image-loading', 'thumb-main-image-ready', 'thumb-main-image-failed');
+                el.classList.add(`thumb-main-image-${state}`);
+            }
+        }
+    }
+
     function isSmallImage(img) {
-        // if (!img.complete) {
-        //     console.log('Image not loaded yet:', img.src);
-        // }
         return img.complete && (img.naturalWidth < minWidth || img.naturalHeight < minHeight);
     }
 
     function collectImages() {
-        const imageEls = [...document.images].filter(img => img.src);
+        const imageEls = [...document.images].filter(img => getBestImageUrl(img));
 
-        let imageUrls = imageEls.map(img => img.src);
+        let imageUrls = imageEls.map(getBestImageUrl);
         imageUrls = [...new Set(imageUrls)];
         imageUrls.sort();
 
@@ -40,10 +124,10 @@
         imageEls.forEach(img => {
             if (isSmallImage(img)) {
                 // console.log('Small image detected:', img.src, img.naturalWidth, img.naturalHeight);
-                smallImages.push(img.src);
+                smallImages.push(getBestImageUrl(img));
             } else {
                 // console.log('Big image detected:', img.src, img.naturalWidth, img.naturalHeight);
-                bigImages.push(img.src);
+                bigImages.push(getBestImageUrl(img));
             }
         });
 
@@ -108,6 +192,7 @@
     // 创建覆盖层
     const overlay = document.createElement('div');
     window.__slideOverlay = overlay;
+    overlay.id = 'slideOverlay';
     overlay.style.cssText = `
         position: fixed;
         top:0; left:0;
@@ -309,8 +394,8 @@
                 maxH: maxHeight,
                 quality: quality
             }, response => {
-                console.log('Received thumb response for', src, response.blobUrl);
-                resolve(response.blobUrl);  // 已经是同源小图
+                // console.log('Received thumb response for', src, response.blobUrl);
+                resolve(response.blobUrl);
             });
         });
     }
@@ -331,20 +416,10 @@
     `;
     contentArea.appendChild(galleryContainer);
 
-    const loadingPlaceholder = `
-        data:image/svg+xml;base64,${btoa(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
-        <rect width="60" height="60" fill="#111"/>
-        <circle cx="30" cy="30" r="10" fill="none" stroke="#888" stroke-width="3">
-            <animateTransform attributeName="transform" type="rotate" from="0 30 30" to="360 30 30" dur="0.8s" repeatCount="indefinite"/>
-        </circle>
-        </svg>
-    `)}`;
-
     const slideShowThumbs = [];
     for (let i = 0; i < shownImages.length; i++) {
         const thumb = document.createElement('img');
-        thumb.classList.add('slide-ignore');
+        thumb.classList.add('slide-ignore', 'thumb', 'thumb-main-image-loading');
         thumb.src = loadingPlaceholder;
         thumb.title = shownImages[i];
         thumb.style.cssText = `
@@ -358,14 +433,15 @@
             transition:border 0.2s;
             box-sizing:border-box;
         `;
-        thumbBar.appendChild(thumb);
+        thumb.onclick = () => showImage(i);
         slideShowThumbs.push(thumb);
+        thumbBar.appendChild(thumb);
     }
 
     const galleryThumbs = [];
     for (let i = 0; i < shownImages.length; i++) {
         const thumb = document.createElement('img');
-        thumb.classList.add('slide-ignore');
+        thumb.classList.add('slide-ignore', 'thumb', 'thumb-main-image-loading');
         thumb.src = loadingPlaceholder;
         thumb.title = shownImages[i];
         thumb.style.cssText = `
@@ -379,16 +455,15 @@
             transition:border 0.2s;
             box-sizing:border-box;
         `;
-        galleryContainer.appendChild(thumb);
+        thumb.onclick = () => switchToSlideshow(i);
         galleryThumbs.push(thumb);
+        galleryContainer.appendChild(thumb);
     }
 
     for (let i = 0; i < shownImages.length; i++) {
         createThumb(shownImages[i]).then(thumbSrc => {
             slideShowThumbs[i].src = thumbSrc;
-            slideShowThumbs[i].onclick = () => showImage(i);
             galleryThumbs[i].src = thumbSrc;
-            galleryThumbs[i].onclick = () => switchToSlideshow(i);
         });
     }
 
@@ -606,8 +681,14 @@
     Promise.all(shownImages.map(src => new Promise((resolve, reject) => {
         const img = new Image();
         img.src = src;
-        img.onload = () => resolve(img);
-        img.onerror = () => resolve(img); // 加载失败也算完成
+        img.onload = () => {
+            setThumbMainImageState(src, 'ready');
+            resolve(img);
+        }
+        img.onerror = () => {
+            setThumbMainImageState(src, 'failed');
+            resolve(img);
+        };
     }))).then(imgEls => {
         if (autoPlayOnStart) {
             startAutoPlay();

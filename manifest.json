@@ -15,8 +15,7 @@
         "downloads",
         "storage",
         "activeTab",
-        "scripting",
-        "<all_urls>"
+        "scripting"
     ],
     "host_permissions": [
         "<all_urls>"
@@ -28,6 +27,7 @@
                 "<all_urls>"
             ],
             "js": [
+                "utils.js",
                 "watcher.js"
             ],
             "run_at": "document_end"

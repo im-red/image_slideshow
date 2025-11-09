@@ -12,8 +12,8 @@ function countBgImages() {
 
 function countNormalImages() {
     let imgEls = [...document.images]
-        .filter(img => img.src && !img.closest('[data-slide-overlay]'))
-        .map(img => img.src);
+        .filter(img => getBestImageUrl(img) && !img.closest('[data-slide-overlay]'))
+        .map(getBestImageUrl);
     imgEls = [...new Set(imgEls)];
     imgEls.sort();
     return imgEls.length;
