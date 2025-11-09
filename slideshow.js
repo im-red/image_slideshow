@@ -674,11 +674,9 @@
     }
 
     switchToSlideshow(0);
-    if (shownImages.length === 1) {
-        return;
-    }
 
     Promise.all(shownImages.map(src => new Promise((resolve, reject) => {
+        console.log('Preloading image:', src);
         const img = new Image();
         img.src = src;
         img.onload = () => {
@@ -690,7 +688,7 @@
             resolve(img);
         };
     }))).then(imgEls => {
-        if (autoPlayOnStart) {
+        if (autoPlayOnStart && shownImages.length > 1) {
             startAutoPlay();
         }
     });
