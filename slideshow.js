@@ -217,7 +217,7 @@
         display: flex;
         justify-content: flex-end;
         align-items: center;
-        padding: 10px;
+        padding: 10px 0;
         gap: 12px;
         flex: 0 0 auto;
         z-index: 2000000;
