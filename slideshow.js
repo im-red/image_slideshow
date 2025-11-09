@@ -22,6 +22,24 @@
             #slideOverlay img.thumb-main-image-failed {
                 opacity: 0.2;
             }
+            #thumbBar {
+                scrollbar-width: thin;
+                scrollbar-color: #888 transparent;
+            }
+            #thumbBar::-webkit-scrollbar {
+                height: 8px;
+            }
+            #thumbBar::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            #thumbBar::-webkit-scrollbar-thumb {
+                background: rgba(136,136,136,0.6);
+                border-radius: 4px;
+                transition: background 0.3s;
+            }
+            #thumbBar::-webkit-scrollbar-thumb:hover {
+                background: rgba(136,136,136,0.9);
+            }
         `;
         document.head.appendChild(style);
     }
@@ -345,8 +363,8 @@
     contentArea.appendChild(mainImage);
 
     // 底部缩略图容器
-    const thumbWrapper = document.createElement('div');
-    thumbWrapper.style.cssText = `
+    const bottomArea = document.createElement('div');
+    bottomArea.style.cssText = `
         width:100%;
         display:flex;
         justify-content:center;
@@ -356,7 +374,7 @@
         box-sizing:border-box;
         flex: 0 0 auto;
     `;
-    overlay.appendChild(thumbWrapper);
+    overlay.appendChild(bottomArea);
 
     const leftArrow = document.createElement('div');
     leftArrow.classList.add('slide-ignore');
@@ -365,16 +383,21 @@
         color:white; font-size:24px; cursor:pointer; user-select:none; margin:0 5px;
     `;
     leftArrow.onclick = () => scrollThumbs(-1);
-    thumbWrapper.appendChild(leftArrow);
+    bottomArea.appendChild(leftArrow);
 
     const thumbBar = document.createElement('div');
+    thumbBar.id = 'thumbBar';
     thumbBar.style.cssText = `
         display:flex;
         gap:5px;
-        overflow:hidden;
+        overflow:auto;
         max-width:80%;
     `;
-    thumbWrapper.appendChild(thumbBar);
+    thumbBar.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        thumbBar.scrollLeft += e.deltaY;
+    }, { passive: false });
+    bottomArea.appendChild(thumbBar);
 
     const rightArrow = document.createElement('div');
     rightArrow.classList.add('slide-ignore');
@@ -383,7 +406,7 @@
         color:white; font-size:24px; cursor:pointer; user-select:none; margin:0 5px;
     `;
     rightArrow.onclick = () => scrollThumbs(1);
-    thumbWrapper.appendChild(rightArrow);
+    bottomArea.appendChild(rightArrow);
 
     async function createThumb(src, maxWidth = 200, maxHeight = 200, quality = 0.7) {
         return new Promise(resolve => {
@@ -550,7 +573,7 @@
         mode = 'gallery';
         indexText.textContent = `${shownImages.length}(+${filteredImages.length} filtered)`
         mainImage.style.display = 'none';
-        thumbWrapper.style.display = 'none';
+        bottomArea.style.display = 'none';
         contentArea.style.alignItems = 'stretch';
         galleryContainer.style.display = 'grid';
         playBtn.style.display = 'none'
@@ -561,7 +584,7 @@
     function switchToSlideshow(i) {
         mode = 'slideshow';
         mainImage.style.display = 'block';
-        thumbWrapper.style.display = 'flex';
+        bottomArea.style.display = 'flex';
         contentArea.style.alignItems = 'center';
         galleryContainer.style.display = 'none';
         playBtn.style.display = 'flex'
