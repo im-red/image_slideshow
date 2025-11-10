@@ -24,20 +24,14 @@
     "content_scripts": [
         {
             "matches": [
-                "<all_urls>"
+                "<all_urls>",
+                "file:///*"
             ],
             "js": [
-                "utils.js",
+                "enhanceConsole.js",
+                "config.js",
+                "common.js",
                 "watcher.js"
-            ],
-            "run_at": "document_end"
-        },
-        {
-            "matches": [
-                "<all_urls>"
-            ],
-            "js": [
-                "enhanceConsole.js"
             ],
             "run_at": "document_end"
         }

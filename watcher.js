@@ -1,33 +1,12 @@
-function countBgImages() {
-    let bgImgs = [...document.querySelectorAll('*')]
-        .map(el => {
-            const bg = getComputedStyle(el).backgroundImage;
-            const match = bg && bg !== 'none' && bg.match(/url\(["']?(.*?)["']?\)/);
-            return match ? match[1] : null;
-        })
-        .filter(Boolean);
-    bgImgs = [...new Set(bgImgs)];
-    return bgImgs.length;
-}
-
-function countNormalImages() {
-    let imgEls = [...document.images]
-        .filter(img => getBestImageUrl(img) && !img.closest('[data-slide-overlay]'))
-        .map(getBestImageUrl);
-    imgEls = [...new Set(imgEls)];
-    imgEls.sort();
-    return imgEls.length;
-}
-
-function countImages() {
-    const bgImagesCount = countBgImages();
-    const normalImagesCount = countNormalImages();
-    return bgImagesCount + normalImagesCount;
+async function countImages() {
+    const prefs = await getConfig();
+    const { shownImages, filteredImages } = collectImage(prefs);
+    return shownImages.length + filteredImages.length;
 }
 
 let lastCount = 0;
-function report() {
-    const count = countImages();
+async function report() {
+    const count = await countImages();
     if (count !== lastCount) {
         lastCount = count;
         chrome.runtime.sendMessage({ type: 'imageCount', count });

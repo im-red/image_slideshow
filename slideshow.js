@@ -50,18 +50,7 @@
         return;
     }
 
-    const prefs = await new Promise(resolve =>
-        chrome.storage.sync.get({ autoPlayOnStart: true, interval: 3, minWidth: 100, minHeight: 100, showBigImage: true, showSmallImage: false, showBgImage: false }, resolve)
-    );
-
-    const autoPlayOnStart = prefs.autoPlayOnStart;
-    const intervalMs = prefs.interval * 1000;
-    const minWidth = prefs.minWidth;
-    const minHeight = prefs.minHeight;
-    const showBigImage = prefs.showBigImage;
-    const showSmallImage = prefs.showSmallImage;
-    const showBgImage = prefs.showBgImage;
-
+    const prefs = await getConfig();
     console.log(prefs);
 
     const loadingPlaceholder = `data:image/svg+xml;base64,${btoa(`
@@ -88,7 +77,7 @@
         </svg>
     `)}`;
 
-    function findThumbElementByUrl(url) {
+    function findThumbElementsByUrl(url) {
         const overlay = document.querySelector('[data-slide-overlay]');
         if (!overlay) return [];
         return Array.from(overlay.querySelectorAll('img.thumb')).filter(img => {
@@ -97,7 +86,7 @@
     }
 
     function showDownloadingPlaceholder(url) {
-        const els = findThumbElementByUrl(url);
+        const els = findThumbElementsByUrl(url);
         for (const el of els) {
             if (el) {
                 el.src = downloadingPlaceholder;
@@ -106,7 +95,7 @@
     }
 
     function showReadyPlaceholder(url) {
-        const els = findThumbElementByUrl(url);
+        const els = findThumbElementsByUrl(url);
         for (const el of els) {
             if (el) {
                 el.src = readyPlaceholder;
@@ -116,7 +105,7 @@
 
     function setThumbMainImageState(url, state) {
         console.log(url, state);
-        const els = findThumbElementByUrl(url);
+        const els = findThumbElementsByUrl(url);
         for (const el of els) {
             if (el) {
                 el.classList.remove('thumb-main-image-loading', 'thumb-main-image-ready', 'thumb-main-image-failed');
@@ -125,76 +114,7 @@
         }
     }
 
-    function isSmallImage(img) {
-        return img.complete && (img.naturalWidth < minWidth || img.naturalHeight < minHeight);
-    }
-
-    function collectImages() {
-        const imageEls = [...document.images].filter(img => getBestImageUrl(img));
-
-        let imageUrls = imageEls.map(getBestImageUrl);
-        imageUrls = [...new Set(imageUrls)];
-        imageUrls.sort();
-
-        let bigImages = [];
-        let smallImages = [];
-
-        imageEls.forEach(img => {
-            if (isSmallImage(img)) {
-                // console.log('Small image detected:', img.src, img.naturalWidth, img.naturalHeight);
-                smallImages.push(getBestImageUrl(img));
-            } else {
-                // console.log('Big image detected:', img.src, img.naturalWidth, img.naturalHeight);
-                bigImages.push(getBestImageUrl(img));
-            }
-        });
-
-        bigImages = [...new Set(bigImages)];
-        smallImages = [...new Set(smallImages)];
-
-        let bgImages = [...document.querySelectorAll('*')]
-            .map(el => {
-                const bg = getComputedStyle(el).backgroundImage;
-                const match = bg && bg !== 'none' && bg.match(/url\(["']?(.*?)["']?\)/);
-                return match ? match[1] : null;
-            })
-            .filter(Boolean);
-        bgImages = [...new Set(bgImages)];
-
-        let shownImages = []
-        let filteredImages = []
-        if (showBigImage) {
-            shownImages.push(...bigImages);
-        } else {
-            filteredImages.push(...bigImages);
-        }
-        if (showSmallImage) {
-            shownImages.push(...smallImages);
-        } else {
-            filteredImages.push(...smallImages);
-        }
-        if (showBgImage) {
-            shownImages.push(...bgImages);
-        } else {
-            filteredImages.push(...bgImages);
-        }
-
-        console.log(`imageEls: ${imageEls.length} imageUrls: ${imageUrls.length} bigImages: ${bigImages.length} smallImages: ${smallImages.length}`);
-        console.log(`bgImages: ${bgImages.length}`);
-        console.log(`shownImages: ${shownImages.length} filteredImages: ${filteredImages.length}`);
-
-        // console.log('imageUrls', imageUrls);
-        // console.log('bgImages', bgImages);
-        // console.log('shownImages', shownImages);
-        // console.log('filteredImages', filteredImages);
-
-        shownImages = [...new Set(shownImages)];
-        filteredImages = [... new Set(filteredImages)];
-
-        return { shownImages, filteredImages };
-    }
-
-    const { shownImages, filteredImages } = collectImages();
+    const { shownImages, filteredImages } = collectImage(prefs);
     if (!filteredImages.length && !shownImages.length) return;
 
     let mode = 'slideshow';
@@ -202,7 +122,7 @@
 
     // 自动播放状态
     let autoPlay = false;
-    let autoPlayInterval = intervalMs; // 默认间隔3秒
+    let autoPlayInterval = prefs.interval * 1000; // 默认间隔3秒
     let autoTimer = null;
     let progressTimer = null;
     let startTime = 0;
@@ -711,7 +631,7 @@
             resolve(img);
         };
     }))).then(imgEls => {
-        if (autoPlayOnStart && shownImages.length > 1) {
+        if (prefs.autoPlayOnStart && shownImages.length > 1) {
             startAutoPlay();
         }
     });
