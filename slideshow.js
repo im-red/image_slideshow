@@ -29,6 +29,17 @@ function createImageOverlay(imgSrc) {
     img.addEventListener('dragstart', e => e.preventDefault());
     overlay.appendChild(img);
 
+    const scaleText = document.createElement("div");
+    scaleText.style.cssText = `
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: white;
+        font-size: 16px;
+        user-select: none;
+    `;
+    overlay.appendChild(scaleText);
+
     // 状态变量
     let scale = 1;
     let offsetX = 0;
@@ -46,6 +57,7 @@ function createImageOverlay(imgSrc) {
         offsetX = Math.min(Math.max(offsetX, -xrange), xrange);
         offsetY = Math.min(Math.max(offsetY, -yrange), yrange);
         img.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+        scaleText.textContent = `${(scale * 100).toFixed(0)}%`;
     }
 
     function defaultScale() {
