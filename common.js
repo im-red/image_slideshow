@@ -7,7 +7,7 @@ function isSmallImage(img, prefs) {
 }
 
 function collectImagesForWeb(prefs) {
-    const imageEls = [...document.images].filter(img => getBestImageUrl(img) && !img.closest('#slideOverlay'));
+    const imageEls = [...document.images].filter(img => getBestImageUrl(img) && !img.closest('#slide-overlay'));
 
     let imageUrls = imageEls.map(getBestImageUrl);
     imageUrls = [...new Set(imageUrls)];

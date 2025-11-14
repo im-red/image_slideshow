@@ -175,13 +175,13 @@ function removeImageOverlay() {
 
         const style = document.createElement('style');
         style.textContent = `
-            #slideOverlay img.thumb-main-image-loading {
+            #slide-overlay img.thumb-main-image-loading {
                 opacity: 0.5;
             }
-            #slideOverlay img.thumb-main-image-ready {
+            #slide-overlay img.thumb-main-image-ready {
                 opacity: 1;
             }
-            #slideOverlay img.thumb-main-image-failed {
+            #slide-overlay img.thumb-main-image-failed {
                 opacity: 0.2;
             }
             #thumbBar {
@@ -241,7 +241,7 @@ function removeImageOverlay() {
     `)}`;
 
     function findThumbElementsByUrl(url) {
-        const overlay = document.querySelector('[data-slide-overlay]');
+        const overlay = document.getElementById("slide-overlay");
         if (!overlay) return [];
         return Array.from(overlay.querySelectorAll('img.thumb')).filter(img => {
             return img.title === url || img.dataset.src === url;
@@ -293,7 +293,7 @@ function removeImageOverlay() {
     // 创建覆盖层
     const overlay = document.createElement('div');
     window.__slideOverlay = overlay;
-    overlay.id = 'slideOverlay';
+    overlay.id = 'slide-overlay';
     overlay.style.cssText = `
         position: fixed;
         top:0; left:0;
@@ -306,7 +306,6 @@ function removeImageOverlay() {
         align-items: center;
         overflow: hidden;
     `;
-    overlay.dataset.slideOverlay = "1";
     document.body.appendChild(overlay);
     document.body.style.overflow = 'hidden';
 
