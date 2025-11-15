@@ -20,7 +20,7 @@
     "host_permissions": [
         "<all_urls>"
     ],
-    "options_page": "options.html",
+    "options_page": "options/options.html",
     "content_scripts": [
         {
             "matches": [
@@ -29,9 +29,11 @@
             ],
             "js": [
                 "enhanceConsole.js",
-                "config.js",
-                "common.js",
-                "watcher.js"
+                "content-scripts/config.js",
+                "content-scripts/common.js",
+                "content-scripts/watcher.js",
+                "content-scripts/scale.js",
+                "content-scripts/thumb.js"
             ],
             "run_at": "document_end"
         }

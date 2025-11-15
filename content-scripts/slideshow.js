@@ -1,210 +1,6 @@
-function createImageOverlay(imgSrc) {
-    console.log('Creating image overlay for', imgSrc);
-    const old = document.getElementById("slide-main-image-overlay");
-    if (old) old.remove();
-
-    const overlay = document.createElement("div");
-    overlay.id = "slide-main-image-overlay";
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background-color: rgba(0,0,0,0.85);
-        z-index: 999999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: grab;
-        overflow: hidden;
-    `;
-    document.body.appendChild(overlay);
-
-    const img = document.createElement("img");
-    img.style.cssText = `
-        user-select: none;
-    `;
-    img.src = imgSrc;
-    img.style.opacity = 0;
-    img.addEventListener('dragstart', e => e.preventDefault());
-    overlay.appendChild(img);
-
-    const scaleText = document.createElement("div");
-    scaleText.style.cssText = `
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        color: white;
-        font-size: 16px;
-        user-select: none;
-    `;
-    overlay.appendChild(scaleText);
-
-    // 状态变量
-    let scale = 1;
-    let offsetX = 0;
-    let offsetY = 0;
-    let dragging = false;
-    let dragged = false;
-    let startX = 0, startY = 0;
-    let maxW = 0, maxH = 0;
-    let imgW = 0, imgH = 0;
-
-    function updateTransform() {
-        console.log('Updating transform:', { offsetX, offsetY, scale });
-        const xrange = Math.max(0, (imgW * scale - maxW) / 2);
-        const yrange = Math.max(0, (imgH * scale - maxH) / 2);
-        offsetX = Math.min(Math.max(offsetX, -xrange), xrange);
-        offsetY = Math.min(Math.max(offsetY, -yrange), yrange);
-        img.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-        scaleText.textContent = `${(scale * 100).toFixed(0)}%`;
-    }
-
-    function defaultScale() {
-        return Math.min(maxW / imgW, maxH / imgH, 1);
-    }
-
-    function resetTransform() {
-        scale = defaultScale();
-        offsetX = 0;
-        offsetY = 0;
-        updateTransform();
-    }
-
-    // 等图片加载完后居中
-    img.addEventListener("load", () => {
-        const rect = overlay.getBoundingClientRect();
-        maxW = rect.width - 40;
-        maxH = rect.height - 40;
-        imgW = img.naturalWidth;
-        imgH = img.naturalHeight;
-        scale = defaultScale();
-        updateTransform();
-        img.style.opacity = 1;
-    });
-
-    // 滚轮缩放（以鼠标为中心）
-    overlay.addEventListener("wheel", e => {
-        e.preventDefault();
-
-        const rect = img.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left - img.naturalWidth * scale / 2;
-        const mouseY = e.clientY - rect.top - img.naturalHeight * scale / 2;
-
-        const prevScale = scale;
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        scale = Math.min(Math.max(scale * delta, 0.1), 10);
-
-        // 缩放中心偏移补偿
-        const factor = scale / prevScale;
-        offsetX -= (mouseX) * (factor - 1);
-        offsetY -= (mouseY) * (factor - 1);
-
-        updateTransform();
-    });
-
-    // 拖拽移动
-    overlay.addEventListener("mousedown", e => {
-        console.log('Mouse down');
-        dragging = true;
-        dragged = false;
-        overlay.style.cursor = "grabbing";
-
-        startX = e.clientX;
-        startY = e.clientY;
-    });
-
-    overlay.addEventListener("mousemove", e => {
-        if (!dragging) return;
-        dragged = true;
-        console.log('Dragging:', { dx: e.clientX - startX, dy: e.clientY - startY });
-
-        offsetX += e.clientX - startX;
-        offsetY += e.clientY - startY;
-        updateTransform();
-
-        startX = e.clientX;
-        startY = e.clientY;
-    });
-
-    overlay.addEventListener("mouseup", () => {
-        console.log('Mouse up');
-        dragging = false;
-        overlay.style.cursor = "grab";
-    });
-
-    overlay.addEventListener("mouseleave", () => {
-        console.log('Mouse leave');
-        dragging = false;
-        overlay.style.cursor = "grab";
-    });
-
-    // 双击重置
-    overlay.addEventListener("dblclick", e => {
-        if (e.target !== img) return;
-        resetTransform();
-    });
-
-    // 点击空白关闭
-    overlay.addEventListener("click", e => {
-        console.log('Overlay clicked');
-        if (dragged) {
-            return;
-        }
-        if (e.target === overlay) overlay.remove();
-    });
-}
-
-function removeImageOverlay() {
-    const overlay = document.getElementById("slide-main-image-overlay");
-    if (overlay) overlay.remove();
-}
-
 (async function () {
-    if (!window.__slideShowInitialized) {
-        window.__slideShowInitialized = true;
-        chrome.runtime.onMessage.addListener((msg) => {
-            console.log('Background received message:', msg);
-            if (msg.type === "imageDownloading") {
-                showDownloadingPlaceholder(msg.url);
-            }
-            if (msg.type === "imageReady") {
-                showReadyPlaceholder(msg.url);
-            }
-        });
-
-        const style = document.createElement('style');
-        style.textContent = `
-            #slide-overlay img.slide-thumb-main-image-loading {
-                opacity: 0.5;
-            }
-            #slide-overlay img.slide-thumb-main-image-ready {
-                opacity: 1;
-            }
-            #slide-overlay img.slide-thumb-main-image-failed {
-                opacity: 0.2;
-            }
-            #thumbBar {
-                scrollbar-width: thin;
-                scrollbar-color: #888 transparent;
-            }
-            #thumbBar::-webkit-scrollbar {
-                height: 8px;
-            }
-            #thumbBar::-webkit-scrollbar-track {
-                background: transparent;
-            }
-            #thumbBar::-webkit-scrollbar-thumb {
-                background: rgba(136,136,136,0.6);
-                border-radius: 4px;
-                transition: background 0.3s;
-            }
-            #thumbBar::-webkit-scrollbar-thumb:hover {
-                background: rgba(136,136,136,0.9);
-            }
-        `;
-        document.head.appendChild(style);
-    }
     if (window.__slideOverlay) {
-        removeImageOverlay();
+        removeScaleImageOverlay();
         window.__slideOverlay.remove();
         window.__slideOverlay = null;
         document.body.style.overflow = "";
@@ -213,67 +9,6 @@ function removeImageOverlay() {
 
     const prefs = await getConfig();
     console.log(prefs);
-
-    const loadingPlaceholder = `data:image/svg+xml;base64,${btoa(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
-            <circle cx="30" cy="30" r="10" fill="none" stroke="#888" stroke-width="3" stroke-dasharray="20 42" stroke-linecap="round">
-                <animateTransform attributeName="transform" type="rotate" from="0 30 30" to="360 30 30" dur="1s" repeatCount="indefinite"/>
-            </circle>
-        </svg>
-    `)}`;
-
-    const downloadingPlaceholder = `data:image/svg+xml;base64,${btoa(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
-            <circle cx="30" cy="30" r="10" fill="none" stroke="#3498db" stroke-width="3" stroke-dasharray="20 42" stroke-linecap="round">
-                <animateTransform attributeName="transform" type="rotate" from="0 30 30" to="360 30 30" dur="1s" repeatCount="indefinite"/>
-            </circle>
-        </svg>
-    `)}`;
-
-    const readyPlaceholder = `data:image/svg+xml;base64,${btoa(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
-            <circle cx="30" cy="30" r="10" fill="none" stroke="#2ecc71" stroke-width="3" stroke-dasharray="20 42" stroke-linecap="round">
-                <animateTransform attributeName="transform" type="rotate" from="0 30 30" to="360 30 30" dur="1s" repeatCount="indefinite"/>
-            </circle>
-        </svg>
-    `)}`;
-
-    function findThumbElementsByUrl(url) {
-        const overlay = document.getElementById("slide-overlay");
-        if (!overlay) return [];
-        return Array.from(overlay.querySelectorAll('img.thumb')).filter(img => {
-            return img.title === url || img.dataset.src === url;
-        });
-    }
-
-    function showDownloadingPlaceholder(url) {
-        const els = findThumbElementsByUrl(url);
-        for (const el of els) {
-            if (el) {
-                el.src = downloadingPlaceholder;
-            }
-        }
-    }
-
-    function showReadyPlaceholder(url) {
-        const els = findThumbElementsByUrl(url);
-        for (const el of els) {
-            if (el) {
-                el.src = readyPlaceholder;
-            }
-        }
-    }
-
-    function setThumbMainImageState(url, state) {
-        console.log(url, state);
-        const els = findThumbElementsByUrl(url);
-        for (const el of els) {
-            if (el) {
-                el.classList.remove('slide-thumb-main-image-loading', 'slide-thumb-main-image-ready', 'slide-thumb-main-image-failed');
-                el.classList.add(`slide-thumb-main-image-${state}`);
-            }
-        }
-    }
 
     const { shownImages, filteredImages } = collectImage(prefs);
     if (!filteredImages.length && !shownImages.length) {
@@ -458,7 +193,7 @@ function removeImageOverlay() {
     mainImage.onclick = () => {
         console.log('Main image clicked:', mainImage.src);
         stopAutoPlay();
-        createImageOverlay(mainImage.src);
+        createScaleImageOverlay(mainImage.src);
     };
     contentArea.appendChild(mainImage);
 
@@ -486,12 +221,13 @@ function removeImageOverlay() {
     bottomArea.appendChild(leftArrow);
 
     const thumbBar = document.createElement('div');
-    thumbBar.id = 'thumbBar';
+    thumbBar.id = 'slide-thumb-bar';
     thumbBar.style.cssText = `
-        display:flex;
-        gap:5px;
-        overflow:auto;
-        max-width:80%;
+        display: flex;
+        gap: 5px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        max-width: 80%;
     `;
     thumbBar.addEventListener('wheel', (e) => {
         e.preventDefault();
@@ -507,21 +243,6 @@ function removeImageOverlay() {
     `;
     rightArrow.onclick = () => scrollThumbs(1);
     bottomArea.appendChild(rightArrow);
-
-    async function createThumb(src, maxWidth = 200, maxHeight = 200, quality = 0.7) {
-        return new Promise(resolve => {
-            chrome.runtime.sendMessage({
-                type: "fetchImageThumb",
-                url: src,
-                maxW: maxWidth,
-                maxH: maxHeight,
-                quality: quality
-            }, response => {
-                // console.log('Received thumb response for', src, response.blobUrl);
-                resolve(response.blobUrl);
-            });
-        });
-    }
 
     // Gallery 容器
     const galleryContainer = document.createElement('div');
@@ -541,94 +262,27 @@ function removeImageOverlay() {
 
     const slideShowThumbs = [];
     for (let i = 0; i < shownImages.length; i++) {
-        const thumb = document.createElement('img');
-        thumb.classList.add('slide-ignore', 'thumb', 'slide-thumb-main-image-loading');
-        thumb.src = loadingPlaceholder;
-        thumb.title = shownImages[i];
-        thumb.style.cssText = `
-            width:60px;
-            height:60px;
-            object-fit:cover;
-            cursor:pointer;
-            border-radius:4px;
-            background:#111;
-            flex-shrink:0;
-            transition:border 0.2s;
-            box-sizing:border-box;
-        `;
-        thumb.onclick = () => showImage(i);
+        const thumb = createThumbElement(shownImages[i], 60, i, false, () => showImage(i));
         slideShowThumbs.push(thumb);
         thumbBar.appendChild(thumb);
     }
 
     const galleryThumbs = [];
     for (let i = 0; i < shownImages.length; i++) {
-        const thumb = document.createElement('img');
-        thumb.classList.add('slide-ignore', 'thumb', 'slide-thumb-main-image-loading');
-        thumb.src = loadingPlaceholder;
-        thumb.title = shownImages[i];
-        thumb.style.cssText = `
-            width:200px;
-            height:200px;
-            object-fit:cover;
-            cursor:pointer;
-            border-radius:4px;
-            background:#000;
-            flex-shrink:0;
-            transition:border 0.2s;
-            box-sizing:border-box;
-        `;
-        thumb.onclick = () => switchToSlideshow(i);
+        const thumb = createThumbElement(shownImages[i], 200, i, false, () => switchToSlideshow(i));
         galleryThumbs.push(thumb);
         galleryContainer.appendChild(thumb);
     }
 
     for (let i = 0; i < shownImages.length; i++) {
-        createThumb(shownImages[i]).then(thumbSrc => {
-            slideShowThumbs[i].src = thumbSrc;
-            galleryThumbs[i].src = thumbSrc;
+        genThumb(shownImages[i]).then(thumbSrc => {
+            setThumbSrc(shownImages[i], thumbSrc);
         });
     }
 
     filteredImages.forEach((src) => {
-        const wrapper = document.createElement('div');
-        wrapper.classList.add('slide-ignore');
-        wrapper.style.cssText = `
-            position: relative;
-            width: 200px;
-            height: 200px;
-            flex: 0 0 auto;
-        `;
-
-        const thumb = document.createElement('img');
-        thumb.src = src;
-        thumb.title = src;
-        thumb.style.cssText = `
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 4px;
-            opacity: 0.6;
-        `;
-        wrapper.appendChild(thumb);
-
-        const overlay = document.createElement('div');
-        overlay.style.cssText = `
-            position: absolute;
-            inset: 0;
-            border-radius: 4px;
-            pointer-events: none;
-            background: repeating-linear-gradient(
-                -45deg,
-                rgba(255, 0, 0, 0.3) 0,
-                rgba(255, 0, 0, 0.3) 8px,
-                rgba(255, 255, 255, 0.2) 8px,
-                rgba(255, 255, 255, 0.2) 16px
-            );
-        `;
-        wrapper.appendChild(overlay);
-
-        galleryContainer.appendChild(wrapper);
+        const thumb = createThumbElement(src, 200, -1, true, () => { });
+        galleryContainer.appendChild(thumb);
     });
 
     const autoPlayProgressEl = document.createElement('div');
@@ -649,7 +303,7 @@ function removeImageOverlay() {
         position: absolute;
         top: 0;
         left: 0;
-        height: 1px;
+        height: 3px;
         width: 0%;
         background: #76E5FC;
         transition: none;
@@ -662,7 +316,7 @@ function removeImageOverlay() {
         position: absolute;
         top: 0;
         right: 0;
-        height: 1px;
+        height: 3px;
         width: 0%;
         background: #FF0035;
         transition: none;
@@ -803,7 +457,7 @@ function removeImageOverlay() {
             if (e.type == 'keyup') {
                 return;
             }
-            const mainImgOverlay = document.getElementById("slide-main-image-overlay");
+            const mainImgOverlay = document.getElementById("slide-scale-image-overlay");
             if (mainImgOverlay) {
                 if (e.key === 'Escape') {
                     mainImgOverlay.remove();
