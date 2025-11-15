@@ -147,6 +147,21 @@ function createThumbElement(src, size, index, isFiltered, onclick) {
             );
         `;
         wrapper.appendChild(filteredOverlay);
+    } else {
+        const indexLabel = document.createElement('div');
+        indexLabel.textContent = index + 1;
+        indexLabel.style.cssText = `
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 2px 4px;
+            border-radius: 4px;
+            z-index: 1;
+        `;
+        wrapper.appendChild(indexLabel);
     }
 
     return wrapper;

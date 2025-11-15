@@ -71,12 +71,13 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
+        user-select: none;
     `;
     topArea.appendChild(indexText);
 
     function updateIndexText() {
         if (mode === 'gallery') {
-            indexText.textContent = `${shownImages.length}(+${filteredImages.length} filtered)`;
+            indexText.textContent = `${shownImages.length}` + (filteredImages.length ? `(+${filteredImages.length} filtered)` : '');
         } else {
             indexText.textContent = `${index + 1} / ${shownImages.length}`;
         }
@@ -501,12 +502,14 @@
         const img = new Image();
         img.src = src;
         img.onload = () => {
+            console.log('Image loaded:', src);
             downloadedCount++;
             updateDownloadProgressBars();
             setThumbMainImageState(src, 'ready');
             resolve(img);
         }
         img.onerror = () => {
+            console.log('Image failed to load:', src);
             failedCount++;
             updateDownloadProgressBars();
             setThumbMainImageState(src, 'failed');
