@@ -24,8 +24,6 @@ function createImageOverlay(imgSrc) {
     `;
     img.src = imgSrc;
     img.style.opacity = 0;
-    // img.style.transformOrigin = "0 0"; // 左上角为基准点，方便计算
-    // img.style.transition = "transform 0.15s ease-out";
     img.addEventListener('dragstart', e => e.preventDefault());
     overlay.appendChild(img);
 
@@ -175,13 +173,13 @@ function removeImageOverlay() {
 
         const style = document.createElement('style');
         style.textContent = `
-            #slide-overlay img.thumb-main-image-loading {
+            #slide-overlay img.slide-thumb-main-image-loading {
                 opacity: 0.5;
             }
-            #slide-overlay img.thumb-main-image-ready {
+            #slide-overlay img.slide-thumb-main-image-ready {
                 opacity: 1;
             }
-            #slide-overlay img.thumb-main-image-failed {
+            #slide-overlay img.slide-thumb-main-image-failed {
                 opacity: 0.2;
             }
             #thumbBar {
@@ -271,14 +269,19 @@ function removeImageOverlay() {
         const els = findThumbElementsByUrl(url);
         for (const el of els) {
             if (el) {
-                el.classList.remove('thumb-main-image-loading', 'thumb-main-image-ready', 'thumb-main-image-failed');
-                el.classList.add(`thumb-main-image-${state}`);
+                el.classList.remove('slide-thumb-main-image-loading', 'slide-thumb-main-image-ready', 'slide-thumb-main-image-failed');
+                el.classList.add(`slide-thumb-main-image-${state}`);
             }
         }
     }
 
     const { shownImages, filteredImages } = collectImage(prefs);
-    if (!filteredImages.length && !shownImages.length) return;
+    if (!filteredImages.length && !shownImages.length) {
+        return;
+    }
+
+    let downloadedCount = 0;
+    let failedCount = 0;
 
     let mode = 'slideshow';
     let index = 0;
@@ -286,9 +289,9 @@ function removeImageOverlay() {
     // 自动播放状态
     let autoPlay = false;
     let autoPlayInterval = prefs.interval * 1000; // 默认间隔3秒
-    let autoTimer = null;
-    let progressTimer = null;
-    let startTime = 0;
+    let autoPlayTimer = null;
+    let autoPlayProgressTimer = null;
+    let autoPlayStartTime = 0;
 
     // 创建覆盖层
     const overlay = document.createElement('div');
@@ -320,7 +323,7 @@ function removeImageOverlay() {
         padding: 10px 0;
         gap: 12px;
         flex: 0 0 auto;
-        z-index: 2000000;
+        z-index: 100;
     `
     overlay.appendChild(topArea);
 
@@ -335,6 +338,14 @@ function removeImageOverlay() {
         transform: translate(-50%, -50%);
     `;
     topArea.appendChild(indexText);
+
+    function updateIndexText() {
+        if (mode === 'gallery') {
+            indexText.textContent = `${shownImages.length}(+${filteredImages.length} filtered)`;
+        } else {
+            indexText.textContent = `${index + 1} / ${shownImages.length}`;
+        }
+    }
 
     const topBtnContainer = document.createElement('div');
     topBtnContainer.style.cssText = `
@@ -531,7 +542,7 @@ function removeImageOverlay() {
     const slideShowThumbs = [];
     for (let i = 0; i < shownImages.length; i++) {
         const thumb = document.createElement('img');
-        thumb.classList.add('slide-ignore', 'thumb', 'thumb-main-image-loading');
+        thumb.classList.add('slide-ignore', 'thumb', 'slide-thumb-main-image-loading');
         thumb.src = loadingPlaceholder;
         thumb.title = shownImages[i];
         thumb.style.cssText = `
@@ -553,7 +564,7 @@ function removeImageOverlay() {
     const galleryThumbs = [];
     for (let i = 0; i < shownImages.length; i++) {
         const thumb = document.createElement('img');
-        thumb.classList.add('slide-ignore', 'thumb', 'thumb-main-image-loading');
+        thumb.classList.add('slide-ignore', 'thumb', 'slide-thumb-main-image-loading');
         thumb.src = loadingPlaceholder;
         thumb.title = shownImages[i];
         thumb.style.cssText = `
@@ -620,8 +631,8 @@ function removeImageOverlay() {
         galleryContainer.appendChild(wrapper);
     });
 
-    const progressEl = document.createElement('div');
-    progressEl.style.cssText = `
+    const autoPlayProgressEl = document.createElement('div');
+    autoPlayProgressEl.style.cssText = `
         position: absolute;
         bottom: 0;
         left: 0;
@@ -629,9 +640,44 @@ function removeImageOverlay() {
         width: 100%;
         background: limegreen;
         transition: none;
-        z-index: 1000002;
+        z-index: 200;
     `;
-    overlay.appendChild(progressEl);
+    overlay.appendChild(autoPlayProgressEl);
+
+    const downloadedProgressEl = document.createElement('div');
+    downloadedProgressEl.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 1px;
+        width: 0%;
+        background: #76E5FC;
+        transition: none;
+        z-index: 200;
+    `;
+    overlay.appendChild(downloadedProgressEl);
+
+    const failedProgressEl = document.createElement('div');
+    failedProgressEl.style.cssText = `
+        position: absolute;
+        top: 0;
+        right: 0;
+        height: 1px;
+        width: 0%;
+        background: #FF0035;
+        transition: none;
+        z-index: 200;
+    `;
+    overlay.appendChild(failedProgressEl);
+
+    function updateDownloadProgressBars() {
+        const downloadedPercent = (downloadedCount / shownImages.length) * 100;
+        const failedPercent = (failedCount / shownImages.length) * 100;
+        console.log('Download progress:', downloadedCount, failedCount, downloadedPercent, failedPercent);
+
+        downloadedProgressEl.style.width = `${downloadedPercent}%`;
+        failedProgressEl.style.width = `${failedPercent}%`;
+    }
 
     function highlightThumb(i) {
         slideShowThumbs.forEach((t, j) => {
@@ -649,7 +695,7 @@ function removeImageOverlay() {
             resetAutoPlayTimer();
         }
         index = (i + shownImages.length) % shownImages.length;
-        indexText.textContent = `${index + 1} / ${shownImages.length}`
+        updateIndexText();
         mainImage.style.opacity = 0;
         setTimeout(() => {
             mainImage.src = shownImages[index];
@@ -660,7 +706,7 @@ function removeImageOverlay() {
 
     function switchToGallery() {
         mode = 'gallery';
-        indexText.textContent = `${shownImages.length}(+${filteredImages.length} filtered)`
+        updateIndexText();
         mainImage.style.display = 'none';
         bottomArea.style.display = 'none';
         contentArea.style.alignItems = 'stretch';
@@ -699,35 +745,35 @@ function removeImageOverlay() {
         if (autoPlay) return;
         autoPlay = true;
         playBtn.textContent = 'Pause ❚❚';
-        autoTimer = setInterval(() => scrollThumbs(1), autoPlayInterval);
+        autoPlayTimer = setInterval(() => scrollThumbs(1), autoPlayInterval);
 
-        startTime = performance.now();
-        progressEl.style.width = '0%';
-        progressTimer = requestAnimationFrame(updateProgress);
+        autoPlayStartTime = performance.now();
+        autoPlayProgressEl.style.width = '0%';
+        autoPlayProgressTimer = requestAnimationFrame(updateAutoplayProgress);
     }
 
     function stopAutoPlay() {
         autoPlay = false;
         playBtn.textContent = 'Play ▶';
-        if (autoTimer) {
-            clearInterval(autoTimer);
-            autoTimer = null;
+        if (autoPlayTimer) {
+            clearInterval(autoPlayTimer);
+            autoPlayTimer = null;
         }
 
-        cancelAnimationFrame(progressTimer);
-        progressEl.style.width = '0%';
+        cancelAnimationFrame(autoPlayProgressTimer);
+        autoPlayProgressEl.style.width = '0%';
     }
 
-    function updateProgress(now) {
-        const elapsed = now - startTime;
+    function updateAutoplayProgress(now) {
+        const elapsed = now - autoPlayStartTime;
         const percent = Math.min(elapsed / autoPlayInterval, 1);
-        progressEl.style.width = `${(1 - percent) * 100}%`;
+        autoPlayProgressEl.style.width = `${(1 - percent) * 100}%`;
         if (percent < 1 && autoPlay) {
-            progressTimer = requestAnimationFrame(updateProgress);
+            autoPlayProgressTimer = requestAnimationFrame(updateAutoplayProgress);
         } else if (autoPlay) {
-            startTime = performance.now();
-            progressEl.style.width = '100%';
-            progressTimer = requestAnimationFrame(updateProgress);
+            autoPlayStartTime = performance.now();
+            autoPlayProgressEl.style.width = '100%';
+            autoPlayProgressTimer = requestAnimationFrame(updateAutoplayProgress);
         }
     }
 
@@ -737,14 +783,14 @@ function removeImageOverlay() {
     }
 
     function resetAutoPlayTimer() {
-        if (autoTimer) {
-            clearInterval(autoTimer);
+        if (autoPlayTimer) {
+            clearInterval(autoPlayTimer);
         }
-        autoTimer = setInterval(() => showImage(index + 1), autoPlayInterval);
-        cancelAnimationFrame(progressTimer);
-        startTime = performance.now();
-        progressEl.style.width = '0%';
-        progressTimer = requestAnimationFrame(updateProgress);
+        autoPlayTimer = setInterval(() => showImage(index + 1), autoPlayInterval);
+        cancelAnimationFrame(autoPlayProgressTimer);
+        autoPlayStartTime = performance.now();
+        autoPlayProgressEl.style.width = '0%';
+        autoPlayProgressTimer = requestAnimationFrame(updateAutoplayProgress);
     }
 
     ['keydown', 'keyup'].forEach(type => {
@@ -801,10 +847,14 @@ function removeImageOverlay() {
         const img = new Image();
         img.src = src;
         img.onload = () => {
+            downloadedCount++;
+            updateDownloadProgressBars();
             setThumbMainImageState(src, 'ready');
             resolve(img);
         }
         img.onerror = () => {
+            failedCount++;
+            updateDownloadProgressBars();
             setThumbMainImageState(src, 'failed');
             resolve(img);
         };
