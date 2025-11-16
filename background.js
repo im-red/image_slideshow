@@ -99,11 +99,11 @@ function onFetchImageThumb(msg, sender, sendResponse) {
             });
             console.log("thumb fetched:", url);
             const thumbDataUrl = await createThumbnail(blob, msg.maxW, msg.maxH, msg.quality);
-            sendResponse({ blobUrl: thumbDataUrl });
+            sendResponse({ thumbBlobUrl: thumbDataUrl });
         })
         .catch(err => {
             console.error("thumb error:", err, url);
-            sendResponse({ blobUrl: url });
+            sendResponse({ thumbBlobUrl: url });
         });
     return true;
 }
