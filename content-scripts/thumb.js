@@ -110,6 +110,7 @@ function createThumbElement(src, size, index, isFiltered, onclick) {
         width: ${size}px;
         height: ${size}px;
         flex: 0 0 auto;
+        box-sizing: border-box;
         opacity: ${isFiltered ? 0.6 : 1};
     `;
 
@@ -123,7 +124,6 @@ function createThumbElement(src, size, index, isFiltered, onclick) {
         object-fit: cover;
         border-radius: 4px;
         transition: border 0.2s;
-        box-sizing: border-box;
         cursor: pointer;
         object-fit: cover;
         flex-shrink: 0;
