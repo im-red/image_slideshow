@@ -23,10 +23,30 @@
 
     // 自动播放状态
     let autoPlay = false;
+    let isRandom = false;
+    let isThumbCollapsed = false;
     let autoPlayInterval = prefs.interval * 1000; // 默认间隔3秒
     let autoPlayTimer = null;
     let autoPlayProgressTimer = null;
     let autoPlayStartTime = 0;
+
+    // Shuffle logic
+    let shuffledIndices = [];
+    let currentShuffleIndex = 0;
+
+    function resetShuffle() {
+        shuffledIndices = Array.from({ length: shownImages.length }, (_, i) => i);
+        // Fisher-Yates shuffle
+        for (let i = shuffledIndices.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffledIndices[i], shuffledIndices[j]] = [shuffledIndices[j], shuffledIndices[i]];
+        }
+        // Ensure current image isn't the first in new shuffle if possible
+        if (shuffledIndices.length > 1 && shuffledIndices[0] === index) {
+            [shuffledIndices[0], shuffledIndices[shuffledIndices.length - 1]] = [shuffledIndices[shuffledIndices.length - 1], shuffledIndices[0]];
+        }
+        currentShuffleIndex = 0;
+    }
 
     // 创建覆盖层
     const overlay = document.createElement('div');
@@ -92,24 +112,77 @@
     `;
     topArea.appendChild(topBtnContainer);
 
-    const playBtn = document.createElement('button');
-    playBtn.classList.add('slide-ignore');
-    playBtn.style.cssText = `
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        font-size: 13px;
-        color: white;
-        cursor: pointer;
+    const playNormalBtn = document.createElement('button');
+    playNormalBtn.classList.add('slide-ignore');
+    playNormalBtn.textContent = '▶';
+    playNormalBtn.style.cssText = `
         padding: 6px 12px;
+        background: rgba(255,255,255,0.1);
+        color: white;
         border: 1px solid rgba(255,255,255,0.2);
         border-radius: 4px;
-        background: rgba(255,255,255,0.1);
-        overflow: hidden;
+        cursor: pointer;
+        font-size: 13px;
     `;
-    topBtnContainer.appendChild(playBtn);
-    playBtn.onclick = toggleAutoPlay;
+    topBtnContainer.appendChild(playNormalBtn);
+    playNormalBtn.onclick = () => startAutoPlay(false);
+
+    const playRandomBtn = document.createElement('button');
+    playRandomBtn.classList.add('slide-ignore');
+    playRandomBtn.textContent = '🔀';
+    playRandomBtn.style.cssText = `
+        padding: 6px 12px;
+        background: rgba(255,255,255,0.1);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+    `;
+    topBtnContainer.appendChild(playRandomBtn);
+    playRandomBtn.onclick = () => startAutoPlay(true);
+
+    const pauseBtn = document.createElement('button');
+    pauseBtn.classList.add('slide-ignore');
+    pauseBtn.textContent = '❚❚';
+    pauseBtn.style.cssText = `
+        padding: 6px 12px;
+        background: rgba(255,255,255,0.1);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        display: none;
+    `;
+    topBtnContainer.appendChild(pauseBtn);
+    pauseBtn.onclick = stopAutoPlay;
+
+    function updatePlayButtons() {
+        if (mode === 'gallery') {
+            playNormalBtn.style.display = 'none';
+            playRandomBtn.style.display = 'none';
+            pauseBtn.style.display = 'none';
+        } else {
+            if (autoPlay) {
+                playNormalBtn.style.display = 'none';
+                playRandomBtn.style.display = 'none';
+                pauseBtn.style.display = 'flex';
+            } else {
+                playNormalBtn.style.display = 'flex';
+                playRandomBtn.style.display = 'flex';
+                pauseBtn.style.display = 'none';
+            }
+        }
+    }
+
+    function toggleThumbBar() {
+        isThumbCollapsed = !isThumbCollapsed;
+        thumbToggleHandle.textContent = isThumbCollapsed ? '▲' : '▼';
+        if (mode === 'slideshow') {
+            bottomArea.style.display = isThumbCollapsed ? 'none' : 'flex';
+        }
+    }
 
     const switchBtn = document.createElement('button');
     switchBtn.classList.add('slide-ignore');
@@ -197,6 +270,26 @@
         createScaleImageOverlay(mainImage.src);
     };
     contentArea.appendChild(mainImage);
+
+    const thumbToggleHandle = document.createElement('div');
+    thumbToggleHandle.classList.add('slide-ignore');
+    thumbToggleHandle.textContent = '▼';
+    thumbToggleHandle.style.cssText = `
+        width: 40px;
+        height: 20px;
+        background: #111;
+        color: white;
+        text-align: center;
+        line-height: 20px;
+        border-radius: 4px 4px 0 0;
+        cursor: pointer;
+        user-select: none;
+        z-index: 101;
+        font-size: 12px;
+        flex: 0 0 auto;
+    `;
+    thumbToggleHandle.onclick = toggleThumbBar;
+    overlay.appendChild(thumbToggleHandle);
 
     // 底部缩略图容器
     const bottomArea = document.createElement('div');
@@ -364,9 +457,12 @@
         updateIndexText();
         mainImage.style.display = 'none';
         bottomArea.style.display = 'none';
+        thumbToggleHandle.style.display = 'none';
         contentArea.style.alignItems = 'stretch';
         galleryContainer.style.display = 'grid';
-        playBtn.style.display = 'none'
+        playNormalBtn.style.display = 'none';
+        playRandomBtn.style.display = 'none';
+        pauseBtn.style.display = 'none';
         switchBtn.textContent = 'Slideshow';
         stopAutoPlay();
     }
@@ -374,10 +470,11 @@
     function switchToSlideshow(i) {
         mode = 'slideshow';
         mainImage.style.display = 'block';
-        bottomArea.style.display = 'flex';
+        bottomArea.style.display = isThumbCollapsed ? 'none' : 'flex';
+        thumbToggleHandle.style.display = 'block';
         contentArea.style.alignItems = 'center';
         galleryContainer.style.display = 'none';
-        playBtn.style.display = 'flex'
+        updatePlayButtons();
         switchBtn.textContent = 'Gallery';
         showImage(i);
         stopAutoPlay();
@@ -392,16 +489,35 @@
     }
 
     function scrollThumbs(dir) {
+        if (mode === 'gallery') return;
         showImage(index + dir);
     }
 
-    function startAutoPlay() {
-        if (mode === 'gallery') return;
-        if (autoPlay) return;
-        autoPlay = true;
-        playBtn.textContent = 'Pause ❚❚';
-        autoPlayTimer = setInterval(() => scrollThumbs(1), autoPlayInterval);
+    function autoPlayTick() {
+        if (!autoPlay) return;
+        if (isRandom) {
+            currentShuffleIndex++;
+            if (currentShuffleIndex >= shuffledIndices.length) {
+                resetShuffle();
+            }
+            showImage(shuffledIndices[currentShuffleIndex]);
+        } else {
+            showImage(index + 1);
+        }
+    }
 
+    function startAutoPlay(random) {
+        if (autoPlay) return;
+
+        if (typeof random === 'boolean') {
+            isRandom = random;
+            if (isRandom) resetShuffle();
+        }
+
+        autoPlay = true;
+        updatePlayButtons();
+
+        autoPlayTimer = setInterval(autoPlayTick, autoPlayInterval);
         autoPlayStartTime = performance.now();
         autoPlayProgressEl.style.width = '0%';
         autoPlayProgressTimer = requestAnimationFrame(updateAutoplayProgress);
@@ -409,7 +525,8 @@
 
     function stopAutoPlay() {
         autoPlay = false;
-        playBtn.textContent = 'Play ▶';
+        updatePlayButtons();
+
         if (autoPlayTimer) {
             clearInterval(autoPlayTimer);
             autoPlayTimer = null;
@@ -434,14 +551,14 @@
 
     function toggleAutoPlay() {
         if (autoPlay) stopAutoPlay();
-        else startAutoPlay();
+        else startAutoPlay(isRandom);
     }
 
     function resetAutoPlayTimer() {
         if (autoPlayTimer) {
             clearInterval(autoPlayTimer);
         }
-        autoPlayTimer = setInterval(() => showImage(index + 1), autoPlayInterval);
+        autoPlayTimer = setInterval(autoPlayTick, autoPlayInterval);
         cancelAnimationFrame(autoPlayProgressTimer);
         autoPlayStartTime = performance.now();
         autoPlayProgressEl.style.width = '0%';
@@ -495,6 +612,7 @@
         return;
     }
 
+    resetShuffle();
     switchToSlideshow(0);
 
     Promise.all(shownImages.map(src => new Promise((resolve, reject) => {
