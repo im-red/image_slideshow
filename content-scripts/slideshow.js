@@ -25,6 +25,7 @@
     let autoPlay = false;
     let isRandom = false;
     let isThumbCollapsed = false;
+    let currentRotation = 0;
     let autoPlayInterval = prefs.interval * 1000; // 默认间隔3秒
     let autoPlayTimer = null;
     let autoPlayProgressTimer = null;
@@ -158,21 +159,70 @@
     topBtnContainer.appendChild(pauseBtn);
     pauseBtn.onclick = stopAutoPlay;
 
+    const rotateLeftBtn = document.createElement('button');
+    rotateLeftBtn.classList.add('slide-ignore');
+    rotateLeftBtn.textContent = '⟲';
+    rotateLeftBtn.style.cssText = `
+        padding: 6px 12px;
+        background: rgba(255,255,255,0.1);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+    `;
+    topBtnContainer.appendChild(rotateLeftBtn);
+    rotateLeftBtn.onclick = () => rotateImage(-90);
+
+    const rotateRightBtn = document.createElement('button');
+    rotateRightBtn.classList.add('slide-ignore');
+    rotateRightBtn.textContent = '⟳';
+    rotateRightBtn.style.cssText = `
+        padding: 6px 12px;
+        background: rgba(255,255,255,0.1);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+    `;
+    topBtnContainer.appendChild(rotateRightBtn);
+    rotateRightBtn.onclick = () => rotateImage(90);
+
     function updatePlayButtons() {
         if (mode === 'gallery') {
             playNormalBtn.style.display = 'none';
             playRandomBtn.style.display = 'none';
             pauseBtn.style.display = 'none';
+            rotateLeftBtn.style.display = 'none';
+            rotateRightBtn.style.display = 'none';
         } else {
             if (autoPlay) {
                 playNormalBtn.style.display = 'none';
                 playRandomBtn.style.display = 'none';
                 pauseBtn.style.display = 'flex';
+                rotateLeftBtn.style.display = 'none';
+                rotateRightBtn.style.display = 'none';
             } else {
                 playNormalBtn.style.display = 'flex';
                 playRandomBtn.style.display = 'flex';
                 pauseBtn.style.display = 'none';
+                rotateLeftBtn.style.display = 'flex';
+                rotateRightBtn.style.display = 'flex';
             }
+        }
+    }
+
+    function rotateImage(deg) {
+        currentRotation += deg;
+        mainImage.style.transform = `rotate(${currentRotation}deg)`;
+        const isVertical = Math.abs(currentRotation / 90) % 2 === 1;
+        if (isVertical) {
+            mainImage.style.maxWidth = '85vh';
+            mainImage.style.maxHeight = '95vw';
+        } else {
+            mainImage.style.maxWidth = '95%';
+            mainImage.style.maxHeight = '95%';
         }
     }
 
@@ -587,11 +637,38 @@
                 return;
             }
             if (mode === 'slideshow') {
+                if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyC' || e.key === 'c' || e.key === 'C')) {
+                    const currentImage = shownImages[index];
+                    if (currentImage) {
+                        navigator.clipboard.writeText(currentImage).then(() => {
+                            indexText.textContent = 'Copied!';
+                            setTimeout(() => {
+                                updateIndexText();
+                            }, 1000);
+                        }).catch(err => {
+                            console.error('Failed to copy:', err);
+                        });
+                    }
+                    return;
+                }
+
                 if (e.key === 'Escape') {
                     exitBtn.click();
                 }
-                else if (e.key === 'ArrowRight') scrollThumbs(1);
-                else if (e.key === 'ArrowLeft') scrollThumbs(-1);
+                else if (e.key === 'ArrowRight') {
+                    if (e.ctrlKey) {
+                        rotateImage(90);
+                    } else {
+                        scrollThumbs(1);
+                    }
+                }
+                else if (e.key === 'ArrowLeft') {
+                    if (e.ctrlKey) {
+                        rotateImage(-90);
+                    } else {
+                        scrollThumbs(-1);
+                    }
+                }
             } else if (e.key === 'Escape') {
                 exitBtn.click();
             }
