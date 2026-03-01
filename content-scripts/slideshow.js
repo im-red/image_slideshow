@@ -116,6 +116,7 @@
     const playNormalBtn = document.createElement('button');
     playNormalBtn.classList.add('slide-ignore');
     playNormalBtn.textContent = '▶';
+    playNormalBtn.title = 'Play Normal';
     playNormalBtn.style.cssText = `
         padding: 6px 12px;
         background: rgba(255,255,255,0.1);
@@ -124,6 +125,7 @@
         border-radius: 4px;
         cursor: pointer;
         font-size: 13px;
+        font-family: 'Segoe UI Symbol', 'Arial', sans-serif;
     `;
     topBtnContainer.appendChild(playNormalBtn);
     playNormalBtn.onclick = () => startAutoPlay(false);
@@ -131,6 +133,7 @@
     const playRandomBtn = document.createElement('button');
     playRandomBtn.classList.add('slide-ignore');
     playRandomBtn.textContent = '🔀';
+    playRandomBtn.title = 'Play Random';
     playRandomBtn.style.cssText = `
         padding: 6px 12px;
         background: rgba(255,255,255,0.1);
@@ -139,6 +142,7 @@
         border-radius: 4px;
         cursor: pointer;
         font-size: 13px;
+        font-family: 'Segoe UI Symbol', 'Arial', sans-serif;
     `;
     topBtnContainer.appendChild(playRandomBtn);
     playRandomBtn.onclick = () => startAutoPlay(true);
@@ -146,6 +150,7 @@
     const pauseBtn = document.createElement('button');
     pauseBtn.classList.add('slide-ignore');
     pauseBtn.textContent = '❚❚';
+    pauseBtn.title = 'Pause';
     pauseBtn.style.cssText = `
         padding: 6px 12px;
         background: rgba(255,255,255,0.1);
@@ -154,6 +159,7 @@
         border-radius: 4px;
         cursor: pointer;
         font-size: 13px;
+        font-family: 'Segoe UI Symbol', 'Arial', sans-serif;
         display: none;
     `;
     topBtnContainer.appendChild(pauseBtn);
@@ -162,6 +168,7 @@
     const rotateLeftBtn = document.createElement('button');
     rotateLeftBtn.classList.add('slide-ignore');
     rotateLeftBtn.textContent = '⟲';
+    rotateLeftBtn.title = 'Rotate Left';
     rotateLeftBtn.style.cssText = `
         padding: 6px 12px;
         background: rgba(255,255,255,0.1);
@@ -170,6 +177,7 @@
         border-radius: 4px;
         cursor: pointer;
         font-size: 13px;
+        font-family: 'Segoe UI Symbol', 'Arial', sans-serif;
     `;
     topBtnContainer.appendChild(rotateLeftBtn);
     rotateLeftBtn.onclick = () => rotateImage(-90);
@@ -177,6 +185,7 @@
     const rotateRightBtn = document.createElement('button');
     rotateRightBtn.classList.add('slide-ignore');
     rotateRightBtn.textContent = '⟳';
+    rotateRightBtn.title = 'Rotate Right';
     rotateRightBtn.style.cssText = `
         padding: 6px 12px;
         background: rgba(255,255,255,0.1);
@@ -185,6 +194,7 @@
         border-radius: 4px;
         cursor: pointer;
         font-size: 13px;
+        font-family: 'Segoe UI Symbol', 'Arial', sans-serif;
     `;
     topBtnContainer.appendChild(rotateRightBtn);
     rotateRightBtn.onclick = () => rotateImage(90);
@@ -234,23 +244,10 @@
         }
     }
 
-    const switchBtn = document.createElement('button');
-    switchBtn.classList.add('slide-ignore');
-    switchBtn.style.cssText = `
-        padding: 6px 12px;
-        background: rgba(255,255,255,0.1);
-        color: white;
-        border: 1px solid rgba(255,255,255,0.2);
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 13px;
-    `;
-    topBtnContainer.appendChild(switchBtn);
-    switchBtn.onclick = switchMode;
-
     const saveBtn = document.createElement('button');
-    saveBtn.textContent = '💾 Save';
+    saveBtn.textContent = '💾';
     saveBtn.classList.add('slide-ignore');
+    saveBtn.title = 'Save Images';
     saveBtn.style.cssText = `
         padding: 6px 12px;
         background: rgba(255,255,255,0.1);
@@ -259,6 +256,7 @@
         border-radius: 4px;
         cursor: pointer;
         font-size: 13px;
+        font-family: 'Segoe UI Symbol', 'Arial', sans-serif;
     `;
     saveBtn.onclick = () => {
         chrome.runtime.sendMessage({
@@ -272,9 +270,26 @@
     };
     topBtnContainer.appendChild(saveBtn);
 
+    const switchBtn = document.createElement('button');
+    switchBtn.classList.add('slide-ignore');
+    switchBtn.title = 'Switch View';
+    switchBtn.style.cssText = `
+        padding: 6px 12px;
+        background: rgba(255,255,255,0.1);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        font-family: 'Segoe UI Symbol', 'Arial', sans-serif;
+    `;
+    topBtnContainer.appendChild(switchBtn);
+    switchBtn.onclick = switchMode;
+
     const exitBtn = document.createElement('button');
     exitBtn.classList.add('slide-ignore');
     exitBtn.textContent = '✕';
+    exitBtn.title = 'Close';
     exitBtn.style.cssText = `
         padding: 6px 12px;
         background: rgba(255,255,255,0.1);
@@ -283,6 +298,7 @@
         border-radius: 4px;
         cursor: pointer;
         font-size: 13px;
+        font-family: 'Segoe UI Symbol', 'Arial', sans-serif;
     `;
     exitBtn.onclick = () => {
         overlay.remove();
@@ -324,6 +340,7 @@
     const thumbToggleHandle = document.createElement('div');
     thumbToggleHandle.classList.add('slide-ignore');
     thumbToggleHandle.textContent = '▼';
+    thumbToggleHandle.title = 'Toggle Thumbnails';
     thumbToggleHandle.style.cssText = `
         width: 40px;
         height: 20px;
@@ -337,6 +354,7 @@
         z-index: 101;
         font-size: 12px;
         flex: 0 0 auto;
+        font-family: 'Segoe UI Symbol', 'Arial', sans-serif;
     `;
     thumbToggleHandle.onclick = toggleThumbBar;
     overlay.appendChild(thumbToggleHandle);
@@ -358,8 +376,10 @@
     const leftArrow = document.createElement('div');
     leftArrow.classList.add('slide-ignore');
     leftArrow.textContent = '<';
+    leftArrow.title = 'Previous Image';
     leftArrow.style.cssText = `
         color:white; font-size:24px; cursor:pointer; user-select:none; margin:0 5px;
+        font-family: 'Segoe UI Symbol', 'Arial', sans-serif;
     `;
     leftArrow.onclick = () => scrollThumbs(-1);
     bottomArea.appendChild(leftArrow);
@@ -382,8 +402,10 @@
     const rightArrow = document.createElement('div');
     rightArrow.classList.add('slide-ignore');
     rightArrow.textContent = '>';
+    rightArrow.title = 'Next Image';
     rightArrow.style.cssText = `
         color:white; font-size:24px; cursor:pointer; user-select:none; margin:0 5px;
+        font-family: 'Segoe UI Symbol', 'Arial', sans-serif;
     `;
     rightArrow.onclick = () => scrollThumbs(1);
     bottomArea.appendChild(rightArrow);
