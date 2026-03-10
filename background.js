@@ -60,14 +60,53 @@ function onDownloadImages(msg, sender, sendResponse) {
     const safeUrl = url.replace(/[\.\\/:*?"<>|]+/g, "_");
     const folderName = `${safeTitle}_${safeUrl}`;
 
-    for (const [i, imgUrl] of images.entries()) {
-        chrome.downloads.download({
-            url: imgUrl,
-            filename: `${folderName}/${String(i + 1).padStart(3, "0")}.jpg`
-        });
-    }
+    chrome.storage.sync.get({ sequentialDownload: false }, async (prefs) => {
+        if (prefs.sequentialDownload) {
+            await downloadSequentially(images, folderName);
+        } else {
+            downloadAllAtOnce(images, folderName);
+        }
+    });
     sendResponse({ ok: true });
     return true;
+}
+
+function downloadAllAtOnce(images, folderName) {
+    for (const [i, imgUrl] of images.entries()) {
+        const options = {
+            url: imgUrl,
+            filename: `${folderName}/${String(i + 1).padStart(3, "0")}.jpg`
+        };
+        console.log('Download options:', options);
+        chrome.downloads.download(options);
+    }
+}
+
+async function downloadSequentially(images, folderName) {
+    for (const [i, imgUrl] of images.entries()) {
+        const options = {
+            url: imgUrl,
+            filename: `${folderName}/${String(i + 1).padStart(3, "0")}.jpg`
+        };
+        console.log('Download options:', options);
+        await downloadOne(options);
+    }
+}
+
+function downloadOne(options) {
+    return new Promise((resolve) => {
+        chrome.downloads.download(options, (downloadId) => {
+            const onChanged = (delta) => {
+                if (delta.id === downloadId && delta.state) {
+                    if (delta.state.current === 'complete' || delta.state.current === 'interrupted') {
+                        chrome.downloads.onChanged.removeListener(onChanged);
+                        resolve();
+                    }
+                }
+            };
+            chrome.downloads.onChanged.addListener(onChanged);
+        });
+    });
 }
 
 function onImageCount(msg, sender, sendResponse) {

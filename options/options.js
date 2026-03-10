@@ -6,18 +6,20 @@ const minHeightInput = document.getElementById('minHeight');
 const showBigImageInput = document.getElementById('showBigImage');
 const showSmallImageInput = document.getElementById('showSmallImage');
 const showBgImageInput = document.getElementById('showBgImage');
+const sequentialDownloadInput = document.getElementById('sequentialDownload');
 const saveBtn = document.getElementById('saveBtn');
 
 // 页面加载时读取存储的配置
 document.addEventListener('DOMContentLoaded', () => {
     chrome.storage.sync.get({
         autoPlayOnStart: true,
-        interval: 3,      // 默认 3 秒
-        minWidth: 100,    // 默认 100px
-        minHeight: 100,    // 默认 100px
+        interval: 3,
+        minWidth: 100,
+        minHeight: 100,
         showBigImage: true,
         showSmallImage: false,
         showBgImage: false,
+        sequentialDownload: false,
     }, prefs => {
         autoPlayOnStartInput.checked = prefs.autoPlayOnStart
         intervalInput.value = prefs.interval;
@@ -26,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showBigImageInput.checked = prefs.showBigImage;
         showSmallImageInput.checked = prefs.showSmallImage;
         showBgImageInput.checked = prefs.showBgImage;
+        sequentialDownloadInput.checked = prefs.sequentialDownload;
     });
 });
 
@@ -39,6 +42,7 @@ saveBtn.addEventListener('click', () => {
         showBigImage: Boolean(showBigImageInput.checked),
         showSmallImage: Boolean(showSmallImageInput.checked),
         showBgImage: Boolean(showBgImageInput.checked),
+        sequentialDownload: Boolean(sequentialDownloadInput.checked),
     };
 
     chrome.storage.sync.set(prefs, () => {
