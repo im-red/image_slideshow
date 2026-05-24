@@ -384,6 +384,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                         ref={mainImageRef}
                         className="slideshow-main-img"
                         src={shownImages[index]}
+                        title={shownImages[index]}
                         style={{
                             maxWidth: isVertical ? '85vh' : '95%',
                             maxHeight: isVertical ? '95vw' : '95%',
@@ -401,11 +402,11 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                     <div className="slideshow-gallery">
                         {shownImages.map((src, i) => {
                             const { src: thumbSrc, opacity } = getThumbProps(src, false);
-                            return <img key={i} src={thumbSrc} style={{ opacity }} className="slideshow-gallery-img" onClick={() => switchToSlideshow(i)} />;
+                            return <img key={i} src={thumbSrc} title={src} style={{ opacity }} className="slideshow-gallery-img" onClick={() => switchToSlideshow(i)} />;
                         })}
                         {filteredImages.map((src, i) => {
                             const { src: thumbSrc, opacity } = getThumbProps(src, true);
-                            return <img key={`f-${i}`} src={thumbSrc} style={{ opacity }} className="slideshow-gallery-img filtered" />;
+                            return <img key={`f-${i}`} src={thumbSrc} title={src} style={{ opacity }} className="slideshow-gallery-img filtered" />;
                         })}
                     </div>
                 )}
@@ -431,7 +432,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                                 {shownImages.map((src, i) => {
                                     const { src: thumbSrc, opacity } = getThumbProps(src, false);
                                     return (
-                                        <div key={i} className="slideshow-thumb-wrapper" onClick={() => showImage(i)}>
+                                        <div key={i} className="slideshow-thumb-wrapper" onClick={() => showImage(i)} title={src}>
                                             <img
                                                 src={thumbSrc}
                                                 style={{ opacity }}

@@ -103,6 +103,55 @@ test('slideshow respects autoPlayOnStart option', async ({ page, background, ext
   await expect(newPauseButton).toBeHidden();
 });
 
+test('slideshow images have title attributes for hover URL display', async ({ page, background }) => {
+  await page.goto('https://www.baidu.com');
+  await page.waitForLoadState('networkidle');
+
+  // Trigger the slideshow
+  await background.evaluate(() => {
+    (self as any).__triggerSlideshow();
+  });
+
+  const overlay = page.locator('#slide-overlay');
+  await expect(overlay).toBeVisible();
+
+  // Wait for the main image to appear
+  const mainImage = overlay.locator('.slideshow-main-img');
+  await expect(mainImage).toBeVisible();
+
+  // Verify the main image has a title attribute (URL)
+  const titleAttr = await mainImage.getAttribute('title');
+  expect(titleAttr).toBeTruthy();
+  expect(titleAttr?.startsWith('http')).toBe(true);
+
+  // Switch to gallery mode
+  const switchModeBtn = overlay.locator('button[title="Switch View"]');
+  await switchModeBtn.click();
+
+  // Verify gallery images have title attributes
+  const galleryImages = overlay.locator('.slideshow-gallery-img').first();
+  await expect(galleryImages).toBeVisible();
+  const galleryTitleAttr = await galleryImages.getAttribute('title');
+  expect(galleryTitleAttr).toBeTruthy();
+  expect(galleryTitleAttr?.startsWith('http')).toBe(true);
+
+  // Switch back to slideshow mode by clicking the gallery image
+  await galleryImages.click();
+
+  // Expand thumbs if collapsed
+  const thumbBar = overlay.locator('.slideshow-thumb-bar-container');
+  if (await thumbBar.isHidden()) {
+    await overlay.locator('.slideshow-thumb-toggle').click();
+  }
+
+  // Verify thumb wrappers have title attributes
+  const thumbWrapper = overlay.locator('.slideshow-thumb-wrapper').first();
+  await expect(thumbWrapper).toBeVisible();
+  const thumbTitleAttr = await thumbWrapper.getAttribute('title');
+  expect(thumbTitleAttr).toBeTruthy();
+  expect(thumbTitleAttr?.startsWith('http')).toBe(true);
+});
+
 test('slideshow thumbnail bar UI requirements', async ({ page, background }) => {
   await page.goto('https://www.baidu.com');
   await page.waitForLoadState('networkidle');
