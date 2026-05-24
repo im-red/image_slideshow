@@ -1,18 +1,61 @@
-importScripts("enhanceConsole.js");
+import { logger } from "./logger";
+import slideshowScript from "./content-scripts/slideshow?script";
 
 chrome.action.onClicked.addListener(async (tab) => {
+    if (!tab.id) return;
+    
     await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        files: ["content-scripts/slideshow.js"]
+        files: [slideshowScript]
+    });
+    
+    // Explicitly call init in case the ES module was already loaded
+    await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+            if (typeof (window as any).__initSlideshow === 'function') {
+                (window as any).__initSlideshow();
+            }
+        }
     });
 });
+
+// Expose for Playwright testing
+(self as any).__triggerSlideshow = async () => {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tabs[0]?.id) {
+        logger.info('Playwright trigger invoked for tab:', tabs[0].id);
+        
+        // Execute the script
+        await chrome.scripting.executeScript({
+            target: { tabId: tabs[0].id },
+            files: [slideshowScript]
+        });
+        
+        // Because ES modules are only evaluated once by the browser, 
+        // if the script was already injected, the module body won't run again.
+        // We explicitly call the global init function we exposed.
+        await chrome.scripting.executeScript({
+            target: { tabId: tabs[0].id },
+            func: () => {
+                if (typeof (window as any).__initSlideshow === 'function') {
+                    (window as any).__initSlideshow();
+                }
+            }
+        });
+        
+        logger.info('Playwright trigger execution finished.');
+    } else {
+        logger.error('Playwright trigger failed: No active tab found.');
+    }
+};
 
 chrome.tabs.onActivated.addListener(({ tabId }) => {
     chrome.tabs.sendMessage(tabId, { action: "tabActivated" });
 });
 
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    console.log(msg, sender);
+chrome.runtime.onMessage.addListener((msg: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
+    logger.info(msg, sender);
     if (msg.type === 'downloadImages') {
         return onDownloadImages(msg, sender, sendResponse);
     }
@@ -22,19 +65,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === 'fetchImageThumb') {
         return onFetchImageThumb(msg, sender, sendResponse);
     }
-    console.error('Unknown message type:', msg);
+    logger.error('Unknown message type:', msg);
     return false;
 });
 
-function blobToDataURL(blob) {
+function blobToDataURL(blob: Blob): Promise<string> {
     return new Promise(resolve => {
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result); // dataURL
+        reader.onload = () => resolve(reader.result as string); // dataURL
         reader.readAsDataURL(blob);
     });
 }
 
-async function createThumbnail(blob, maxW = 200, maxH = 200, quality = 0.7) {
+async function createThumbnail(blob: Blob, maxW = 200, maxH = 200, quality = 0.7): Promise<string> {
     const bitmap = await createImageBitmap(blob);
     let { width, height } = bitmap;
 
@@ -44,7 +87,7 @@ async function createThumbnail(blob, maxW = 200, maxH = 200, quality = 0.7) {
 
     const canvas = new OffscreenCanvas(width, height);
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(bitmap, 0, 0, width, height);
+    ctx?.drawImage(bitmap, 0, 0, width, height);
 
     const thumbBlob = await canvas.convertToBlob({
         type: "image/jpeg",
@@ -54,7 +97,7 @@ async function createThumbnail(blob, maxW = 200, maxH = 200, quality = 0.7) {
     return blobToDataURL(thumbBlob); // 返回 dataURL
 }
 
-function onDownloadImages(msg, sender, sendResponse) {
+function onDownloadImages(msg: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) {
     const { title, url, images } = msg;
     const safeTitle = title.replace(/[\\/:*?"<>|]+/g, "_");
     const safeUrl = url.replace(/[\.\\/:*?"<>|]+/g, "_");
@@ -71,32 +114,32 @@ function onDownloadImages(msg, sender, sendResponse) {
     return true;
 }
 
-function downloadAllAtOnce(images, folderName) {
+function downloadAllAtOnce(images: string[], folderName: string) {
     for (const [i, imgUrl] of images.entries()) {
         const options = {
             url: imgUrl,
             filename: `${folderName}/${String(i + 1).padStart(3, "0")}.jpg`
         };
-        console.log('Download options:', options);
+        logger.info('Download options:', options);
         chrome.downloads.download(options);
     }
 }
 
-async function downloadSequentially(images, folderName) {
+async function downloadSequentially(images: string[], folderName: string) {
     for (const [i, imgUrl] of images.entries()) {
         const options = {
             url: imgUrl,
             filename: `${folderName}/${String(i + 1).padStart(3, "0")}.jpg`
         };
-        console.log('Download options:', options);
+        logger.info('Download options:', options);
         await downloadOne(options);
     }
 }
 
-function downloadOne(options) {
+function downloadOne(options: chrome.downloads.DownloadOptions): Promise<void> {
     return new Promise((resolve) => {
         chrome.downloads.download(options, (downloadId) => {
-            const onChanged = (delta) => {
+            const onChanged = (delta: chrome.downloads.DownloadDelta) => {
                 if (delta.id === downloadId && delta.state) {
                     if (delta.state.current === 'complete' || delta.state.current === 'interrupted') {
                         chrome.downloads.onChanged.removeListener(onChanged);
@@ -109,7 +152,7 @@ function downloadOne(options) {
     });
 }
 
-function onImageCount(msg, sender, sendResponse) {
+function onImageCount(msg: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) {
     const tabId = sender.tab?.id;
     if (tabId) {
         chrome.action.setBadgeText({
@@ -123,25 +166,29 @@ function onImageCount(msg, sender, sendResponse) {
     return true;
 }
 
-function onFetchImageThumb(msg, sender, sendResponse) {
+function onFetchImageThumb(msg: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) {
     const url = msg.url;
-    chrome.tabs.sendMessage(sender.tab.id, {
-        type: "imageDownloading",
-        url
-    });
+    if (sender.tab?.id) {
+        chrome.tabs.sendMessage(sender.tab.id, {
+            type: "imageDownloading",
+            url
+        });
+    }
     fetch(url)
         .then(r => r.blob())
         .then(async blob => {
-            chrome.tabs.sendMessage(sender.tab.id, {
-                type: "imageReady",
-                url
-            });
-            console.log("thumb fetched:", url);
+            if (sender.tab?.id) {
+                chrome.tabs.sendMessage(sender.tab.id, {
+                    type: "imageReady",
+                    url
+                });
+            }
+            logger.success("thumb fetched:", url);
             const thumbDataUrl = await createThumbnail(blob, msg.maxW, msg.maxH, msg.quality);
             sendResponse({ thumbBlobUrl: thumbDataUrl });
         })
         .catch(err => {
-            console.error("thumb error:", err, url);
+            logger.error("thumb error:", err, url);
             sendResponse({ thumbBlobUrl: url });
         });
     return true;

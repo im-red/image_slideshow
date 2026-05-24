@@ -1,10 +1,12 @@
+import { logger } from "../logger";
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === "tabActivated") {
         refreshConfig();
     }
 });
 
-async function refreshConfig() {
+export async function refreshConfig() {
     window.__slideshowConfig = await new Promise((resolve) => {
         chrome.storage.sync.get(
             {
@@ -19,10 +21,10 @@ async function refreshConfig() {
             resolve
         );
     });
-    console.log("Configuration refreshed:", window.__slideshowConfig);
+    logger.info("Configuration refreshed:", window.__slideshowConfig);
 }
 
-async function getConfig() {
+export async function getConfig() {
     if (window.__slideshowConfig === undefined) {
         await refreshConfig();
     }

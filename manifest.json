@@ -3,12 +3,21 @@
     "name": "Image Slideshow",
     "version": "0.1",
     "background": {
-        "service_worker": "background.js"
+        "service_worker": "background.ts"
     },
     "action": {
         "default_title": "Start Slideshow",
         "default_icon": {
             "128": "icon.png"
+        }
+    },
+    "commands": {
+        "_execute_action": {
+            "suggested_key": {
+                "default": "Alt+S",
+                "mac": "Alt+S"
+            },
+            "description": "Start Slideshow"
         }
     },
     "permissions": [
@@ -28,12 +37,7 @@
                 "file:///*"
             ],
             "js": [
-                "enhanceConsole.js",
-                "content-scripts/config.js",
-                "content-scripts/common.js",
-                "content-scripts/watcher.js",
-                "content-scripts/scale.js",
-                "content-scripts/thumb.js"
+                "content-scripts/watcher.ts"
             ],
             "run_at": "document_end"
         }
@@ -41,10 +45,12 @@
     "web_accessible_resources": [
         {
             "resources": [
-                "enhanceConsole.js"
+                "assets/*",
+                "content-scripts/*"
             ],
             "matches": [
-                "<all_urls>"
+                "<all_urls>",
+                "file:///*"
             ]
         }
     ]

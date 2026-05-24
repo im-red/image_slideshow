@@ -1,0 +1,33 @@
+.options-container {
+    font-family: sans-serif;
+    padding: 20px;
+}
+
+.options-label {
+    display: block;
+    margin: 10px 0 5px;
+}
+
+.options-input-number {
+    width: 80px;
+}
+
+.options-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+}
+
+.options-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+}
+
+.options-save-btn {
+    display: block;
+    margin-top: 20px;
+    padding: 6px 12px;
+}

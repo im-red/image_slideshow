@@ -1,0 +1,240 @@
+.slideshow-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.slideshow-top-bar {
+    position: relative;
+    width: 100%;
+    background: black;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 10px 0;
+    gap: 12px;
+    flex: 0 0 auto;
+    z-index: 100;
+}
+
+.slideshow-index-text {
+    position: absolute;
+    color: white;
+    font-size: 15px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    user-select: none;
+}
+
+.slideshow-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-right: 12px;
+}
+
+.slideshow-btn {
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.slideshow-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.slideshow-progress-downloaded {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 3px;
+    background: #76E5FC;
+    z-index: 200;
+}
+
+.slideshow-progress-failed {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 3px;
+    background: #FF0035;
+    z-index: 200;
+}
+
+.slideshow-content-area {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.slideshow-content-area.mode-slideshow {
+    align-items: center;
+}
+
+.slideshow-content-area.mode-gallery {
+    align-items: stretch;
+}
+
+.slideshow-main-img {
+    border-radius: 8px;
+    margin-bottom: 10px;
+    user-select: none;
+    transition: transform 0.2s;
+}
+
+.slideshow-gallery {
+    overflow: auto;
+    width: 80%;
+    padding: 20px 0;
+    gap: 10px;
+    display: grid;
+    justify-items: center;
+    align-content: start;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    scrollbar-width: none;
+}
+
+.slideshow-gallery-img {
+    width: 200px;
+    height: 200px;
+    object-fit: contain;
+    cursor: pointer;
+    background-color: #222;
+}
+
+.slideshow-gallery-img.filtered {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.slideshow-thumb-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    background: #111;
+    cursor: pointer;
+    user-select: none;
+    height: 20px;
+    width: 40px;
+    margin: 0 auto;
+    border-radius: 4px 4px 0 0;
+    z-index: 101;
+}
+
+.slideshow-thumb-toggle-icon {
+    margin-top: 2px;
+}
+
+.slideshow-thumb-bar-container {
+    width: 100%;
+    background: #111;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 5px 0;
+    z-index: 100;
+}
+
+.slideshow-thumb-nav {
+    color: white;
+    cursor: pointer;
+    margin: 0 5px;
+}
+
+.slideshow-thumb-bar {
+    display: flex;
+    gap: 5px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 80%;
+    scrollbar-width: thin;
+    scrollbar-color: #555 #111;
+    padding-bottom: 4px;
+}
+
+.slideshow-thumb-bar::-webkit-scrollbar {
+    height: 6px;
+}
+
+.slideshow-thumb-bar::-webkit-scrollbar-track {
+    background: #111;
+    border-radius: 3px;
+}
+
+.slideshow-thumb-bar::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 3px;
+}
+
+.slideshow-thumb-bar::-webkit-scrollbar-thumb:hover {
+    background: #777;
+}
+
+.slideshow-thumb-wrapper {
+    position: relative;
+    height: 60px;
+    width: 60px;
+    flex-shrink: 0;
+    display: flex;
+}
+
+.slideshow-thumb-img {
+    height: 100%;
+    width: 100%;
+    object-fit: contain;
+    cursor: pointer;
+    background-color: #222;
+    box-sizing: border-box;
+    border-radius: 4px;
+}
+
+.slideshow-thumb-img.active {
+    outline: 3px solid #0f0;
+    outline-offset: -3px;
+}
+
+.slideshow-thumb-img.inactive {
+    outline: none;
+}
+
+.slideshow-thumb-index {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    color: white;
+    font-size: 10px;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 1px 3px;
+    border-radius: 2px;
+    user-select: none;
+    pointer-events: none;
+}
+
+.slideshow-autoplay-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 1px;
+    background: limegreen;
+    z-index: 200;
+}

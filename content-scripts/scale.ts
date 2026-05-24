@@ -1,41 +1,33 @@
-function createScaleImageOverlay(imgSrc) {
-    console.log('Creating scale image overlay for', imgSrc);
+import { logger } from "../logger";
+import scaleStyles from './scale.css?inline';
+
+export function createScaleImageOverlay(imgSrc: string) {
+    logger.info('Creating scale image overlay for', imgSrc);
     const old = document.getElementById("slide-scale-image-overlay");
     if (old) old.remove();
 
+    // Ensure style is injected once
+    if (!document.getElementById("slide-scale-style")) {
+        const style = document.createElement("style");
+        style.id = "slide-scale-style";
+        style.textContent = scaleStyles;
+        document.head.appendChild(style);
+    }
+
     const overlay = document.createElement("div");
     overlay.id = "slide-scale-image-overlay";
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background-color: rgba(0,0,0,0.85);
-        z-index: 999999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: grab;
-        overflow: hidden;
-    `;
+    overlay.className = "scale-overlay";
     document.body.appendChild(overlay);
 
     const img = document.createElement("img");
-    img.style.cssText = `
-        user-select: none;
-    `;
+    img.className = "scale-overlay-img";
     img.src = imgSrc;
-    img.style.opacity = 0;
+    img.style.opacity = "0";
     img.addEventListener('dragstart', e => e.preventDefault());
     overlay.appendChild(img);
 
     const scaleText = document.createElement("div");
-    scaleText.style.cssText = `
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        color: white;
-        font-size: 16px;
-        user-select: none;
-    `;
+    scaleText.className = "scale-overlay-text";
     overlay.appendChild(scaleText);
 
     // 状态变量
@@ -49,7 +41,7 @@ function createScaleImageOverlay(imgSrc) {
     let imgW = 0, imgH = 0;
 
     function updateTransform() {
-        console.log('Updating transform:', { offsetX, offsetY, scale });
+        logger.info('Updating transform:', { offsetX, offsetY, scale });
         const xrange = Math.max(0, (imgW * scale - maxW) / 2);
         const yrange = Math.max(0, (imgH * scale - maxH) / 2);
         offsetX = Math.min(Math.max(offsetX, -xrange), xrange);
@@ -79,7 +71,7 @@ function createScaleImageOverlay(imgSrc) {
         imgH = img.naturalHeight;
         scale = defaultScale();
         updateTransform();
-        img.style.opacity = 1;
+        img.style.opacity = "1";
     });
 
     // 滚轮缩放（以鼠标为中心）
@@ -154,7 +146,7 @@ function createScaleImageOverlay(imgSrc) {
     });
 }
 
-function removeScaleImageOverlay() {
+export function removeScaleImageOverlay() {
     const overlay = document.getElementById("slide-scale-image-overlay");
     if (overlay) overlay.remove();
 }

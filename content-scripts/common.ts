@@ -1,43 +1,47 @@
-function getBestImageUrl(img) {
+import { logger } from "../logger";
+
+function getBestImageUrl(img: HTMLImageElement): string | null {
     return img.currentSrc || img.src || img.dataset.src || img.dataset.original || null;
 }
 
-function isSmallImage(img, prefs) {
+function isSmallImage(img: HTMLImageElement, prefs: any) {
     return img.complete && (img.naturalWidth < prefs.minWidth || img.naturalHeight < prefs.minHeight);
 }
 
-function collectImagesForWeb(prefs) {
-    const imageEls = [...document.images].filter(img => getBestImageUrl(img) && !img.closest('#slide-overlay'));
+function collectImagesForWeb(prefs: any) {
+    const imageEls = ([...document.images] as HTMLImageElement[]).filter(img => getBestImageUrl(img) && !img.closest('#slide-overlay'));
 
-    let imageUrls = imageEls.map(getBestImageUrl);
+    let imageUrls = imageEls.map(getBestImageUrl).filter(Boolean) as string[];
     imageUrls = [...new Set(imageUrls)];
     imageUrls.sort();
 
-    let bigImages = [];
-    let smallImages = [];
+    let bigImages: string[] = [];
+    let smallImages: string[] = [];
 
     imageEls.forEach(img => {
+        const url = getBestImageUrl(img);
+        if (!url) return;
         if (isSmallImage(img, prefs)) {
-            smallImages.push(getBestImageUrl(img));
+            smallImages.push(url);
         } else {
-            bigImages.push(getBestImageUrl(img));
+            bigImages.push(url);
         }
     });
 
     bigImages = [...new Set(bigImages)];
     smallImages = [...new Set(smallImages)];
 
-    let bgImages = [...document.querySelectorAll('*')]
+    let bgImages: string[] = [...document.querySelectorAll('*')]
         .map(el => {
             const bg = getComputedStyle(el).backgroundImage;
             const match = bg && bg !== 'none' && bg.match(/url\(["']?(.*?)["']?\)/);
             return match ? match[1] : null;
         })
-        .filter(Boolean);
+        .filter(Boolean) as string[];
     bgImages = [...new Set(bgImages)];
 
-    let shownImages = []
-    let filteredImages = []
+    let shownImages: string[] = []
+    let filteredImages: string[] = []
     if (prefs.showBigImage) {
         shownImages.push(...bigImages);
     } else {
@@ -54,9 +58,9 @@ function collectImagesForWeb(prefs) {
         filteredImages.push(...bgImages);
     }
 
-    // console.log(`imageEls: ${imageEls.length} imageUrls: ${imageUrls.length} bigImages: ${bigImages.length} smallImages: ${smallImages.length}`);
-    // console.log(`bgImages: ${bgImages.length}`);
-    // console.log(`shownImages: ${shownImages.length} filteredImages: ${filteredImages.length}`);
+    // consola.info(`imageEls: ${imageEls.length} imageUrls: ${imageUrls.length} bigImages: ${bigImages.length} smallImages: ${smallImages.length}`);
+    // consola.info(`bgImages: ${bgImages.length}`);
+    // consola.info(`shownImages: ${shownImages.length} filteredImages: ${filteredImages.length}`);
 
     shownImages = [...new Set(shownImages)];
     filteredImages = [... new Set(filteredImages)];
@@ -72,17 +76,21 @@ function collectImagesForLocal() {
     const links = Array.from(document.querySelectorAll('a[href]'));
 
     // 3. 提取图片链接
-    let imageUrls = links
+    let imageUrls: string[] = links
         .map(a => {
             try {
                 // 把相对路径转为绝对 file:// URL
-                const href = new URL(a.getAttribute('href'), location.href).href;
-                return href;
+                const href = a.getAttribute('href');
+                if (!href) return null;
+                const url = new URL(href, location.href).href;
+                return url;
             } catch (err) {
                 return null;
             }
         })
-        .filter(Boolean)
+        .filter(Boolean) as string[];
+        
+    imageUrls = imageUrls
         .filter(href => imgExt.test(href))
         .filter(href => !href.endsWith('../'))  // 排除上级目录链接
         .filter(href => !/\/\.\//.test(href))   // 排除奇怪路径
@@ -93,7 +101,7 @@ function collectImagesForLocal() {
     return { shownImages: imageUrls, filteredImages: [] };
 }
 
-function collectImage(prefs) {
+export function collectImage(prefs: any) {
     const isLocal = location.protocol === 'file:';
     return isLocal ? collectImagesForLocal() : collectImagesForWeb(prefs);
 }

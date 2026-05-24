@@ -1,3 +1,7 @@
+import { getConfig } from './config';
+import { collectImage } from './common';
+import { logger } from "../logger";
+
 async function countImages() {
     const prefs = await getConfig();
     const { shownImages, filteredImages } = collectImage(prefs);
@@ -13,11 +17,12 @@ async function report() {
     }
 }
 
+logger.info('Watcher initialization started.');
 // 初始化时主动检查一次
 report();
 
 // 监听页面 DOM 变化（如懒加载、新增节点等）
-let reportTimer = null;
+let reportTimer: ReturnType<typeof setTimeout> | null = null;
 const observer = new MutationObserver(() => {
     if (reportTimer !== null) {
         return;
