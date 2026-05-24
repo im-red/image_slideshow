@@ -131,9 +131,37 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
         setCurrentShuffleIndex(0);
     }, [shownImages.length, index]);
 
+    const [toast, setToast] = useState<{ id: number, msg: string } | null>(null);
+    const toastTimerRef = useRef<any>(null);
+    const toastIdCounter = useRef(0);
+
+    const showToast = useCallback((msg: string) => {
+        const id = ++toastIdCounter.current;
+        setToast({ id, msg });
+        if (toastTimerRef.current) {
+            clearTimeout(toastTimerRef.current);
+        }
+        toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+    }, []);
+
     const showImage = useCallback((i: number) => {
         if (shownImages.length === 0) return;
-        const newIndex = (i + shownImages.length) % shownImages.length;
+
+        if (i < 0) {
+            showToast("Already at the first image");
+            return;
+        }
+
+        if (i >= shownImages.length) {
+            showToast("Already at the last image");
+            if (autoPlay) {
+                setAutoPlay(false);
+                setProgress(0);
+            }
+            return;
+        }
+
+        const newIndex = i;
         setIndex(newIndex);
         setCurrentRotation(0);
 
@@ -141,7 +169,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
             autoPlayStartTime.current = performance.now();
             setProgress(0);
         }
-    }, [shownImages.length, autoPlay]);
+    }, [shownImages.length, autoPlay, showToast]);
 
     const autoPlayTick = useCallback(() => {
         if (isRandom) {
@@ -154,9 +182,20 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                 return next;
             });
         } else {
-            setIndex(prev => (prev + 1) % shownImages.length);
+            setIndex(prev => {
+                const next = prev + 1;
+                if (next >= shownImages.length) {
+                    setTimeout(() => {
+                        showToast("Already at the last image");
+                        setAutoPlay(false);
+                        setProgress(0);
+                    }, 0);
+                    return prev;
+                }
+                return next;
+            });
         }
-    }, [isRandom, shuffledIndices.length, shownImages.length, resetShuffle]);
+    }, [isRandom, shuffledIndices.length, shownImages.length, resetShuffle, showToast]);
 
     useEffect(() => {
         if (isRandom && shuffledIndices.length > 0) {
@@ -368,6 +407,12 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                             const { src: thumbSrc, opacity } = getThumbProps(src, true);
                             return <img key={`f-${i}`} src={thumbSrc} style={{ opacity }} className="slideshow-gallery-img filtered" />;
                         })}
+                    </div>
+                )}
+
+                {toast && (
+                    <div key={toast.id} className="slideshow-toast">
+                        {toast.msg}
                     </div>
                 )}
             </div>
