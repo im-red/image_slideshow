@@ -1,9 +1,10 @@
 {
     "manifest_version": 3,
     "name": "Image Slideshow",
-    "version": "0.1",
+    "version": "1.0.0",
     "background": {
-        "service_worker": "background.ts"
+        "service_worker": "src/background/background.ts",
+        "type": "module"
     },
     "action": {
         "default_title": "Start Slideshow",
@@ -29,7 +30,10 @@
     "host_permissions": [
         "<all_urls>"
     ],
-    "options_page": "options/options.html",
+    "options_ui": {
+        "page": "src/options/options.html",
+        "open_in_tab": true
+    },
     "content_scripts": [
         {
             "matches": [
@@ -37,7 +41,7 @@
                 "file:///*"
             ],
             "js": [
-                "content-scripts/watcher.ts"
+                "src/content-scripts/watcher.ts"
             ],
             "run_at": "document_end"
         }
@@ -46,7 +50,7 @@
         {
             "resources": [
                 "assets/*",
-                "content-scripts/*"
+                "src/content-scripts/*"
             ],
             "matches": [
                 "<all_urls>",

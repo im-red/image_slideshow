@@ -1,5 +1,5 @@
-import { logger } from "./logger";
-import slideshowScript from "./content-scripts/slideshow?script";
+import { logger } from '../utils/logger';
+import slideshowScript from '../content-scripts/slideshow.tsx?script';
 
 chrome.action.onClicked.addListener(async (tab) => {
     if (!tab.id) return;

@@ -1,6 +1,6 @@
 import { getConfig } from './config';
 import { collectImage } from './common';
-import { logger } from "../logger";
+import { logger } from "../utils/logger";
 
 async function countImages() {
     const prefs = await getConfig();

@@ -75,7 +75,7 @@ test('slideshow respects autoPlayOnStart option', async ({ page, background, ext
 
   // Now change the option to false via the options page
   const optionsPage = await page.context().newPage();
-  await optionsPage.goto(`chrome-extension://${extensionId}/options/options.html`);
+  await optionsPage.goto(`chrome-extension://${extensionId}/src/options/options.html`);
   const autoPlayCheckbox = optionsPage.locator('#autoPlayOnStart');
   await autoPlayCheckbox.uncheck();
   

@@ -7,7 +7,7 @@ import { collectImage } from './common';
 import { genThumb } from './thumb';
 import { createScaleImageOverlay, removeScaleImageOverlay } from './scale';
 
-import { logger } from "../logger";
+import { logger } from "../utils/logger";
 import slideshowStyles from './slideshow.css?inline';
 
 const loadingPlaceholder = `data:image/svg+xml;base64,${btoa(`

@@ -1,4 +1,4 @@
-import { logger } from "../logger";
+import { logger } from "../utils/logger";
 import scaleStyles from './scale.css?inline';
 
 export function createScaleImageOverlay(imgSrc: string) {

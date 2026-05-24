@@ -1,4 +1,4 @@
-import { logger } from "../logger";
+import { logger } from "../utils/logger";
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === "tabActivated") {

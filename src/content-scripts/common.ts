@@ -1,4 +1,4 @@
-import { logger } from "../logger";
+import { logger } from "../utils/logger";
 
 function getBestImageUrl(img: HTMLImageElement): string | null {
     return img.currentSrc || img.src || img.dataset.src || img.dataset.original || null;

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { logger } from "../logger";
+import { logger } from "../utils/logger";
 import './options.css';
 
 function Options() {
