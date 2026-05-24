@@ -516,12 +516,16 @@
         }
         index = (i + shownImages.length) % shownImages.length;
         updateIndexText();
-        mainImage.style.opacity = 0;
-        setTimeout(() => {
-            mainImage.src = shownImages[index];
-            mainImage.onload = () => mainImage.style.opacity = 1;
-            highlightThumb(index);
-        }, 0);
+        highlightThumb(index);
+
+        const targetSrc = shownImages[index];
+        const tempImg = new Image();
+        tempImg.onload = tempImg.onerror = () => {
+            if (shownImages[index] === targetSrc) {
+                mainImage.src = targetSrc;
+            }
+        };
+        tempImg.src = targetSrc;
     }
 
     function switchToGallery() {
