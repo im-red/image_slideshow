@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Play, Shuffle, Pause, RotateCcw, RotateCw, Save, LayoutGrid, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Play, Shuffle, Pause, RotateCcw, RotateCw, Save, Images, LayoutGrid, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { getConfig } from './config';
 import { collectImage } from './common';
@@ -360,7 +360,9 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                     )}
                     <button onClick={handleSave} className="slideshow-btn" title="Save Images"><Save size={16} /></button>
                     {shownImages.length > 0 && (
-                        <button onClick={switchMode} className="slideshow-btn" title="Switch View"><LayoutGrid size={16} /></button>
+                        <button onClick={switchMode} className="slideshow-btn" title="Switch View">
+                            {(mode === 'slideshow') ? <LayoutGrid size={16} /> : <Images size={16} />}
+                        </button>
                     )}
                     <button onClick={unmount} className="slideshow-btn" title="Close"><X size={16} /></button>
                 </div>
