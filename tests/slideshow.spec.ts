@@ -209,3 +209,84 @@ test('slideshow thumbnail bar UI requirements', async ({ page, background }) => 
   const textContent = await indexText.textContent();
   expect(textContent).toBe('1');
 });
+
+test('main image native copy function is enabled (user-select is not none)', async ({ page, background }) => {
+  await page.goto('https://www.baidu.com');
+  await page.waitForLoadState('networkidle');
+
+  // Open the slideshow
+  await background.evaluate(() => {
+    (self as any).__triggerSlideshow();
+  });
+
+  const overlay = page.locator('#slide-overlay');
+  await expect(overlay).toBeVisible();
+
+  const mainImage = overlay.locator('.slideshow-main-img');
+  await expect(mainImage).toBeVisible();
+
+  // The CSS user-select property should not be 'none' so that the browser's 
+  // native right-click "Copy image" context menu works properly.
+  const userSelect = await mainImage.evaluate((el) => {
+    return window.getComputedStyle(el).userSelect;
+  });
+  
+  expect(userSelect).not.toBe('none');
+
+  // Also verify scale overlay image
+  await mainImage.click();
+  const scaleOverlay = page.locator('#slide-scale-image-overlay');
+  await expect(scaleOverlay).toBeVisible();
+
+  const scaleImage = scaleOverlay.locator('.scale-overlay-img');
+  await expect(scaleImage).toBeVisible();
+
+  const scaleUserSelect = await scaleImage.evaluate((el) => {
+    return window.getComputedStyle(el).userSelect;
+  });
+  
+  expect(scaleUserSelect).not.toBe('none');
+});
+
+test('Ctrl+C copies image URL to clipboard', async ({ page, background, context }) => {
+  // Grant clipboard permissions to the context
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+  await page.goto('https://www.baidu.com');
+  await page.waitForLoadState('networkidle');
+
+  // Open the slideshow
+  await background.evaluate(() => {
+    (self as any).__triggerSlideshow();
+  });
+
+  const overlay = page.locator('#slide-overlay');
+  await expect(overlay).toBeVisible();
+
+  // Ensure image is visible
+  const mainImage = overlay.locator('.slideshow-main-img');
+  await expect(mainImage).toBeVisible();
+
+  // Get the current image src
+  const imgSrc = await mainImage.getAttribute('src');
+
+  // Press Ctrl+C on the page
+  await page.keyboard.press('Control+C');
+
+  // Wait for the toast to appear
+  const toast = overlay.locator('.slideshow-toast');
+  await expect(toast).toBeVisible();
+  await expect(toast).toHaveText('Image URL copied to clipboard');
+
+  // Read from clipboard and verify it's the image URL
+  const clipboardText = await page.evaluate(async () => {
+    try {
+      return await navigator.clipboard.readText();
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  });
+
+  expect(clipboardText).toBe(imgSrc);
+});

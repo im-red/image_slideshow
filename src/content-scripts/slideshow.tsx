@@ -273,6 +273,20 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.code === 'F12' || e.code === 'F11') return;
+
+            if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyC' || e.key === 'c' || e.key === 'C')) {
+                const currentImage = shownImages[index];
+                if (currentImage) {
+                    navigator.clipboard.writeText(currentImage).then(() => {
+                        showToast('Image URL copied to clipboard');
+                    }).catch(err => {
+                        console.error('Failed to copy:', err);
+                        showToast('Failed to copy image URL');
+                    });
+                }
+                return;
+            }
+
             e.stopPropagation();
             e.preventDefault();
 
@@ -297,7 +311,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
 
         window.addEventListener('keydown', handleKeyDown, true);
         return () => window.removeEventListener('keydown', handleKeyDown, true);
-    }, [mode, autoPlay, isRandom, index, showImage, unmount]);
+    }, [mode, autoPlay, isRandom, index, shownImages, showImage, unmount, showToast]);
 
     if (!prefs) return null;
 
