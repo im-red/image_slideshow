@@ -62,40 +62,9 @@ chrome.runtime.onMessage.addListener((msg: any, sender: chrome.runtime.MessageSe
     if (msg.type === 'imageCount') {
         return onImageCount(msg, sender, sendResponse);
     }
-    if (msg.type === 'fetchImageThumb') {
-        return onFetchImageThumb(msg, sender, sendResponse);
-    }
     logger.error('Unknown message type:', msg);
     return false;
 });
-
-function blobToDataURL(blob: Blob): Promise<string> {
-    return new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string); // dataURL
-        reader.readAsDataURL(blob);
-    });
-}
-
-async function createThumbnail(blob: Blob, maxW = 200, maxH = 200, quality = 0.7): Promise<string> {
-    const bitmap = await createImageBitmap(blob);
-    let { width, height } = bitmap;
-
-    const scale = Math.min(maxW / width, maxH / height, 1);
-    width = Math.round(width * scale);
-    height = Math.round(height * scale);
-
-    const canvas = new OffscreenCanvas(width, height);
-    const ctx = canvas.getContext("2d");
-    ctx?.drawImage(bitmap, 0, 0, width, height);
-
-    const thumbBlob = await canvas.convertToBlob({
-        type: "image/jpeg",
-        quality: quality
-    });
-
-    return blobToDataURL(thumbBlob); // 返回 dataURL
-}
 
 function onDownloadImages(msg: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) {
     const { title, url, images } = msg;
@@ -163,33 +132,5 @@ function onImageCount(msg: any, sender: chrome.runtime.MessageSender, sendRespon
             color: '#FF4D4D'
         });
     }
-    return true;
-}
-
-function onFetchImageThumb(msg: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) {
-    const url = msg.url;
-    if (sender.tab?.id) {
-        chrome.tabs.sendMessage(sender.tab.id, {
-            type: "imageDownloading",
-            url
-        });
-    }
-    fetch(url)
-        .then(r => r.blob())
-        .then(async blob => {
-            if (sender.tab?.id) {
-                chrome.tabs.sendMessage(sender.tab.id, {
-                    type: "imageReady",
-                    url
-                });
-            }
-            logger.success("thumb fetched:", url);
-            const thumbDataUrl = await createThumbnail(blob, msg.maxW, msg.maxH, msg.quality);
-            sendResponse({ thumbBlobUrl: thumbDataUrl });
-        })
-        .catch(err => {
-            logger.error("thumb error:", err, url);
-            sendResponse({ thumbBlobUrl: url });
-        });
     return true;
 }

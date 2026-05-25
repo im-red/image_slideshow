@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Play, Shuffle, Pause, RotateCcw, RotateCw, Save, Images, LayoutGrid, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useInView } from 'react-intersection-observer';
 
 import { getConfig } from './config';
 import { collectImage } from './common';
-import { genThumb } from './thumb';
 import { createScaleImageOverlay, removeScaleImageOverlay } from './scale';
 
 import { logger } from "../utils/logger";
@@ -18,21 +18,23 @@ const loadingPlaceholder = `data:image/svg+xml;base64,${btoa(`
 </svg>
 `)}`;
 
-const downloadingPlaceholder = `data:image/svg+xml;base64,${btoa(`
-<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
-    <circle cx="30" cy="30" r="10" fill="none" stroke="#3498db" stroke-width="3" stroke-dasharray="20 42" stroke-linecap="round">
-        <animateTransform attributeName="transform" type="rotate" from="0 30 30" to="360 30 30" dur="1s" repeatCount="indefinite"/>
-    </circle>
-</svg>
-`)}`;
+function LazyImage({ src, opacity, className, title, onClick }: any) {
+    const { ref, inView } = useInView({
+        rootMargin: '200px',
+        triggerOnce: true,
+    });
 
-const processingPlaceholder = `data:image/svg+xml;base64,${btoa(`
-<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
-    <circle cx="30" cy="30" r="10" fill="none" stroke="#2ecc71" stroke-width="3" stroke-dasharray="20 42" stroke-linecap="round">
-        <animateTransform attributeName="transform" type="rotate" from="0 30 30" to="360 30 30" dur="1s" repeatCount="indefinite"/>
-    </circle>
-</svg>
-`)}`;
+    return (
+        <img
+            ref={ref}
+            src={inView ? src : loadingPlaceholder}
+            style={{ opacity }}
+            className={className}
+            title={title}
+            onClick={onClick}
+        />
+    );
+}
 
 function SlideshowApp({ unmount }: { unmount: () => void }) {
     const [prefs, setPrefs] = useState<any>(null);
@@ -44,8 +46,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
     const [isRandom, setIsRandom] = useState(false);
     const [isThumbCollapsed, setIsThumbCollapsed] = useState(false);
     const [currentRotation, setCurrentRotation] = useState(0);
-    const [thumbs, setThumbs] = useState<Record<string, string>>({});
-    const [thumbStates, setThumbStates] = useState<Record<string, 'loading' | 'downloading' | 'processing' | 'ready' | 'failed'>>({});
+    const [imageStates, setImageStates] = useState<Record<string, 'loading' | 'ready' | 'failed'>>({});
     const [progress, setProgress] = useState(0);
     const [downloadedCount, setDownloadedCount] = useState(0);
     const [failedCount, setFailedCount] = useState(0);
@@ -76,25 +77,23 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                     setAutoPlay(true);
                 }
 
-                // Preload thumbs
-                shownImages.forEach(src => {
-                    setThumbStates(prev => ({ ...prev, [src]: 'loading' }));
-                    genThumb(src).then(thumbSrc => {
-                        setThumbs(prev => ({ ...prev, [src]: thumbSrc }));
-                        setThumbStates(prev => ({ ...prev, [src]: 'ready' }));
-                    }).catch(() => {
-                        setThumbStates(prev => ({ ...prev, [src]: 'failed' }));
-                    });
-                });
-
-                // Preload images logic could go here
+                // Preload images
                 let dCount = 0;
                 let fCount = 0;
                 shownImages.forEach(src => {
+                    setImageStates(prev => ({ ...prev, [src]: 'loading' }));
                     const img = new Image();
                     img.src = src;
-                    img.onload = () => { dCount++; setDownloadedCount(dCount); };
-                    img.onerror = () => { fCount++; setFailedCount(fCount); };
+                    img.onload = () => {
+                        dCount++;
+                        setDownloadedCount(dCount);
+                        setImageStates(prev => ({ ...prev, [src]: 'ready' }));
+                    };
+                    img.onerror = () => {
+                        fCount++;
+                        setFailedCount(fCount);
+                        setImageStates(prev => ({ ...prev, [src]: 'failed' }));
+                    };
                 });
             }
         });
@@ -104,18 +103,6 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
             document.body.style.overflow = '';
             stopAutoPlay();
         };
-    }, []);
-
-    useEffect(() => {
-        const handleMessage = (msg: any) => {
-            if (msg.type === "imageDownloading") {
-                setThumbStates(prev => ({ ...prev, [msg.url]: 'downloading' }));
-            } else if (msg.type === "imageReady") {
-                setThumbStates(prev => ({ ...prev, [msg.url]: 'processing' }));
-            }
-        };
-        chrome.runtime.onMessage.addListener(handleMessage);
-        return () => chrome.runtime.onMessage.removeListener(handleMessage);
     }, []);
 
     const resetShuffle = useCallback(() => {
@@ -321,13 +308,10 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
     const getThumbProps = (src: string, isFiltered: boolean) => {
         if (isFiltered) return { src, opacity: 0.3 };
 
-        if (thumbs[src]) return { src: thumbs[src], opacity: 1 };
-
-        const state = thumbStates[src] || 'loading';
-        if (state === 'failed') return { src: thumbs[src] || src, opacity: 0.2 };
-        if (state === 'downloading') return { src: downloadingPlaceholder, opacity: 0.5 };
-        if (state === 'processing') return { src: processingPlaceholder, opacity: 0.5 };
-        return { src: loadingPlaceholder, opacity: 0.5 };
+        const state = imageStates[src] || 'loading';
+        if (state === 'failed') return { src, opacity: 0.2 };
+        if (state === 'loading') return { src: loadingPlaceholder, opacity: 0.5 };
+        return { src, opacity: 1 };
     };
 
     return (
@@ -406,7 +390,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                             const { src: thumbSrc, opacity } = getThumbProps(src, false);
                             return (
                                 <div key={i} className="slideshow-gallery-wrapper" onClick={() => switchToSlideshow(i)} title={src}>
-                                    <img src={thumbSrc} style={{ opacity }} className="slideshow-gallery-img" />
+                                    <LazyImage src={thumbSrc} opacity={opacity} className="slideshow-gallery-img" />
                                     <div className="slideshow-gallery-index">{i + 1}</div>
                                 </div>
                             );
@@ -415,7 +399,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                             const { src: thumbSrc, opacity } = getThumbProps(src, true);
                             return (
                                 <div key={`f-${i}`} className="slideshow-gallery-wrapper filtered" title={src}>
-                                    <img src={thumbSrc} style={{ opacity }} className="slideshow-gallery-img filtered" />
+                                    <LazyImage src={thumbSrc} opacity={opacity} className="slideshow-gallery-img filtered" />
                                     <div className="slideshow-gallery-index">{shownImages.length + i + 1}</div>
                                 </div>
                             );
@@ -445,9 +429,9 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                                     const { src: thumbSrc, opacity } = getThumbProps(src, false);
                                     return (
                                         <div key={i} className="slideshow-thumb-wrapper" onClick={() => showImage(i)} title={src}>
-                                            <img
+                                            <LazyImage
                                                 src={thumbSrc}
-                                                style={{ opacity }}
+                                                opacity={opacity}
                                                 className={`slideshow-thumb-img ${i === index ? 'active' : 'inactive'}`}
                                             />
                                             <div className="slideshow-thumb-index">{i + 1}</div>
