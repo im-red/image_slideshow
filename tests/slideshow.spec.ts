@@ -129,14 +129,14 @@ test('slideshow images have title attributes for hover URL display', async ({ pa
   await switchModeBtn.click();
 
   // Verify gallery images have title attributes
-  const galleryImages = overlay.locator('.slideshow-gallery-img').first();
-  await expect(galleryImages).toBeVisible();
-  const galleryTitleAttr = await galleryImages.getAttribute('title');
+  const galleryWrapper = overlay.locator('.slideshow-gallery-wrapper').first();
+  await expect(galleryWrapper).toBeVisible();
+  const galleryTitleAttr = await galleryWrapper.getAttribute('title');
   expect(galleryTitleAttr).toBeTruthy();
   expect(galleryTitleAttr?.startsWith('http')).toBe(true);
 
   // Switch back to slideshow mode by clicking the gallery image
-  await galleryImages.click();
+  await galleryWrapper.click();
 
   // Expand thumbs if collapsed
   const thumbBar = overlay.locator('.slideshow-thumb-bar-container');

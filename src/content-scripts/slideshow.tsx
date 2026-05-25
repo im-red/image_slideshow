@@ -402,11 +402,21 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                     <div className="slideshow-gallery">
                         {shownImages.map((src, i) => {
                             const { src: thumbSrc, opacity } = getThumbProps(src, false);
-                            return <img key={i} src={thumbSrc} title={src} style={{ opacity }} className="slideshow-gallery-img" onClick={() => switchToSlideshow(i)} />;
+                            return (
+                                <div key={i} className="slideshow-gallery-wrapper" onClick={() => switchToSlideshow(i)} title={src}>
+                                    <img src={thumbSrc} style={{ opacity }} className="slideshow-gallery-img" />
+                                    <div className="slideshow-gallery-index">{i + 1}</div>
+                                </div>
+                            );
                         })}
                         {filteredImages.map((src, i) => {
                             const { src: thumbSrc, opacity } = getThumbProps(src, true);
-                            return <img key={`f-${i}`} src={thumbSrc} title={src} style={{ opacity }} className="slideshow-gallery-img filtered" />;
+                            return (
+                                <div key={`f-${i}`} className="slideshow-gallery-wrapper filtered" title={src}>
+                                    <img src={thumbSrc} style={{ opacity }} className="slideshow-gallery-img filtered" />
+                                    <div className="slideshow-gallery-index">{shownImages.length + i + 1}</div>
+                                </div>
+                            );
                         })}
                     </div>
                 )}
