@@ -210,7 +210,7 @@ test('slideshow thumbnail bar UI requirements', async ({ page, background }) => 
   expect(textContent).toBe('1');
 });
 
-test('main image native copy function is enabled (user-select is not none)', async ({ page, background }) => {
+test('main image text selection is disabled (user-select is none)', async ({ page, background }) => {
   await page.goto('https://www.baidu.com');
   await page.waitForLoadState('networkidle');
 
@@ -225,13 +225,12 @@ test('main image native copy function is enabled (user-select is not none)', asy
   const mainImage = overlay.locator('.slideshow-main-img');
   await expect(mainImage).toBeVisible();
 
-  // The CSS user-select property should not be 'none' so that the browser's 
-  // native right-click "Copy image" context menu works properly.
+  // Verify text selection is disabled to prevent highlighting while interacting
   const userSelect = await mainImage.evaluate((el) => {
     return window.getComputedStyle(el).userSelect;
   });
   
-  expect(userSelect).not.toBe('none');
+  expect(userSelect).toBe('none');
 
   // Also verify scale overlay image
   await mainImage.click();
@@ -245,7 +244,7 @@ test('main image native copy function is enabled (user-select is not none)', asy
     return window.getComputedStyle(el).userSelect;
   });
   
-  expect(scaleUserSelect).not.toBe('none');
+  expect(scaleUserSelect).toBe('none');
 });
 
 test('Ctrl+C copies image URL to clipboard', async ({ page, background, context }) => {

@@ -255,6 +255,20 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
         showImage(i);
     };
 
+    // Handle thumb bar wheel scrolling with passive: false to preventDefault
+    useEffect(() => {
+        const bar = thumbBarRef.current;
+        if (!bar) return;
+
+        const handleWheel = (e: WheelEvent) => {
+            e.preventDefault();
+            bar.scrollLeft += e.deltaY;
+        };
+
+        bar.addEventListener('wheel', handleWheel, { passive: false });
+        return () => bar.removeEventListener('wheel', handleWheel);
+    }, [mode, isThumbCollapsed, shownImages.length]);
+
     // Scroll active thumbnail into view (always centered)
     useEffect(() => {
         if (mode !== 'slideshow' || !thumbBarRef.current) return;
@@ -274,7 +288,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.code === 'F12' || e.code === 'F11') return;
 
-            if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyC' || e.key === 'c' || e.key === 'C')) {
+            if (e.key === 'ArrowUp' || (e.ctrlKey || e.metaKey) && (e.code === 'KeyC' || e.key === 'c' || e.key === 'C')) {
                 const currentImage = shownImages[index];
                 if (currentImage) {
                     navigator.clipboard.writeText(currentImage).then(() => {
@@ -438,7 +452,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                     {!isThumbCollapsed && (
                         <div className="slideshow-thumb-bar-container" onClick={e => e.stopPropagation()}>
                             <div className="slideshow-thumb-nav" onClick={() => showImage(index - 1)}><ChevronLeft size={24} /></div>
-                            <div ref={thumbBarRef} className="slideshow-thumb-bar" onWheel={e => { e.preventDefault(); if (thumbBarRef.current) thumbBarRef.current.scrollLeft += e.deltaY; }}>
+                            <div ref={thumbBarRef} className="slideshow-thumb-bar">
                                 {shownImages.map((src, i) => {
                                     const { src: thumbSrc, opacity } = getThumbProps(src, false);
                                     return (
