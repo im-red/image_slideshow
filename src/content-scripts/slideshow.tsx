@@ -122,12 +122,15 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
     }, [shownImages, filteredImages, passesRatingFilter, showToast]);
 
     useEffect(() => {
-        if (shownImages.length > 0) {
-            hashUrl(location.href, 'index_').then(key => {
-                chrome.storage.local.set({ [key]: index });
+        if (shownImages.length > 0 && shownImages[index]) {
+            Promise.all([
+                hashUrl(location.href, 'index_'),
+                hashUrl(shownImages[index], 'img_')
+            ]).then(([pageKey, imgHash]) => {
+                chrome.storage.local.set({ [pageKey]: imgHash });
             });
         }
-    }, [index, shownImages.length]);
+    }, [index, shownImages]);
 
     useEffect(() => {
         getConfig().then(p => {
@@ -143,11 +146,15 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                 const indices = Array.from({ length: shownImages.length }, (_, i) => i);
                 setShuffledIndices(indices);
 
-                hashUrl(location.href, 'index_').then(key => {
-                    chrome.storage.local.get([key], (result) => {
-                        const savedIndex = result[key];
-                        if (savedIndex !== undefined && savedIndex < shownImages.length) {
-                            setIndex(savedIndex);
+                hashUrl(location.href, 'index_').then(pageKey => {
+                    chrome.storage.local.get([pageKey], async (result) => {
+                        const savedImgHash = result[pageKey];
+                        if (savedImgHash) {
+                            const hashes = await Promise.all(shownImages.map(url => hashUrl(url, 'img_')));
+                            const foundIndex = hashes.indexOf(savedImgHash);
+                            if (foundIndex !== -1) {
+                                setIndex(foundIndex);
+                            }
                         }
                     });
                 });
@@ -346,10 +353,10 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                 return key;
             }));
 
-            chrome.storage.local.get(keys, (result) => {
+            chrome.storage.local.get(null, (result) => {
                 const newRatings: Record<string, number> = {};
-                for (const key of Object.keys(result)) {
-                    if (keysToUrl[key]) {
+                for (const key of keys) {
+                    if (result[key] !== undefined && keysToUrl[key]) {
                         newRatings[keysToUrl[key]] = result[key];
                     }
                 }
