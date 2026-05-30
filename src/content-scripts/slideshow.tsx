@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Play, Shuffle, Pause, RotateCcw, RotateCw, Save, Images, LayoutGrid, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Play, Shuffle, Pause, RotateCcw, RotateCw, Save, Images, LayoutGrid, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Copy } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
 
 import { getConfig } from './config';
@@ -52,6 +52,8 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
     const [failedCount, setFailedCount] = useState(0);
     const [shuffledIndices, setShuffledIndices] = useState<number[]>([]);
     const [currentShuffleIndex, setCurrentShuffleIndex] = useState(0);
+    const [currentImageInfo, setCurrentImageInfo] = useState<{ width: number, height: number, size: string } | null>(null);
+    const imageSizeCache = useRef<Record<string, string>>({});
 
     const mainImageRef = useRef<HTMLImageElement>(null);
     const thumbBarRef = useRef<HTMLDivElement>(null);
@@ -216,6 +218,91 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
         }
     }, [autoPlay, autoPlayTick, prefs]);
 
+    const formatSize = (bytes: number) => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    useEffect(() => {
+        if (mode !== 'slideshow' || shownImages.length === 0) return;
+
+        let isActive = true;
+        const url = shownImages[index];
+        setCurrentImageInfo(null); // Reset while loading
+
+        const fetchInfo = async () => {
+            let sizeStr = 'Unknown';
+            try {
+                if (imageSizeCache.current[url]) {
+                    sizeStr = imageSizeCache.current[url];
+                } else if (url.startsWith('data:')) {
+                    const base64Str = url.split(',')[1];
+                    const padding = (base64Str.match(/=*$/) || [''])[0].length;
+                    const sizeInBytes = Math.floor((base64Str.length * 3) / 4) - padding;
+                    sizeStr = formatSize(sizeInBytes);
+                } else if (url.startsWith('blob:')) {
+                    const response = await fetch(url);
+                    const blob = await response.blob();
+                    sizeStr = formatSize(blob.size);
+                } else {
+                    // Try to get from performance entries first
+                    const entries = performance.getEntriesByName(url) as PerformanceResourceTiming[];
+                    if (entries.length > 0 && (entries[0].decodedBodySize || entries[0].transferSize)) {
+                        const size = entries[0].decodedBodySize || entries[0].transferSize;
+                        if (size > 0) sizeStr = formatSize(size);
+                    }
+
+                    if (sizeStr === 'Unknown' || sizeStr === '0 B') {
+                        // Fallback to asking background script to bypass CORS
+                        const response = await chrome.runtime.sendMessage({ type: 'getFileSize', url });
+                        if (response && response.size) {
+                            sizeStr = formatSize(response.size);
+                        }
+                    }
+                }
+
+                // Cache the successful result
+                if (sizeStr !== 'Unknown' && sizeStr !== '0 B') {
+                    imageSizeCache.current[url] = sizeStr;
+                }
+            } catch (e) {
+                console.error('Failed to get image size', e);
+            }
+
+            if (!isActive) return;
+
+            const img = new Image();
+            img.src = url;
+            img.onload = () => {
+                if (isActive) {
+                    setCurrentImageInfo({
+                        width: img.naturalWidth,
+                        height: img.naturalHeight,
+                        size: sizeStr
+                    });
+                }
+            };
+            img.onerror = () => {
+                if (isActive) {
+                    setCurrentImageInfo({
+                        width: 0,
+                        height: 0,
+                        size: sizeStr
+                    });
+                }
+            };
+        };
+
+        fetchInfo();
+
+        return () => {
+            isActive = false;
+        };
+    }, [index, shownImages, mode]);
+
     const startAutoPlay = (random: boolean) => {
         setIsRandom(random);
         if (random) resetShuffle();
@@ -229,6 +316,15 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
 
     const rotateImage = (deg: number) => {
         setCurrentRotation(prev => prev + deg);
+    };
+
+    const copyImageUrl = (url: string) => {
+        navigator.clipboard.writeText(url).then(() => {
+            showToast('Image URL copied to clipboard');
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            showToast('Failed to copy image URL');
+        });
     };
 
     const handleSave = () => {
@@ -291,12 +387,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
             if (e.key === 'ArrowUp' || (e.ctrlKey || e.metaKey) && (e.code === 'KeyC' || e.key === 'c' || e.key === 'C')) {
                 const currentImage = shownImages[index];
                 if (currentImage) {
-                    navigator.clipboard.writeText(currentImage).then(() => {
-                        showToast('Image URL copied to clipboard');
-                    }).catch(err => {
-                        console.error('Failed to copy:', err);
-                        showToast('Failed to copy image URL');
-                    });
+                    copyImageUrl(currentImage);
                 }
                 return;
             }
@@ -470,6 +561,28 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                             <div className="slideshow-thumb-nav" onClick={() => showImage(index + 1)}><ChevronRight size={24} /></div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Bottom Info Bar */}
+            {mode === 'slideshow' && shownImages.length > 0 && (
+                <div className="slideshow-bottom-info-bar">
+                    <div className="slideshow-info-left">
+                        <span className="slideshow-info-geometry">
+                            {currentImageInfo ? `${currentImageInfo.width} × ${currentImageInfo.height} px` : '...'}
+                        </span>
+                        <span className="slideshow-info-size">
+                            {currentImageInfo ? currentImageInfo.size : '...'}
+                        </span>
+                    </div>
+                    <div className="slideshow-info-right">
+                        <span className="slideshow-info-url" title={shownImages[index]}>
+                            {shownImages[index]}
+                        </span>
+                        <button onClick={() => copyImageUrl(shownImages[index])} className="slideshow-btn" title="Copy URL">
+                            <Copy size={14} />
+                        </button>
+                    </div>
                 </div>
             )}
             {autoPlay && <div className="slideshow-autoplay-progress" style={{ width: `${(1 - progress) * 100}%` }} />}

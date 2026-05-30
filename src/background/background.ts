@@ -62,9 +62,44 @@ chrome.runtime.onMessage.addListener((msg: any, sender: chrome.runtime.MessageSe
     if (msg.type === 'imageCount') {
         return onImageCount(msg, sender, sendResponse);
     }
+    if (msg.type === 'getFileSize') {
+        onGetFileSize(msg, sender, sendResponse);
+        return true; // indicates asynchronous response
+    }
     logger.error('Unknown message type:', msg);
     return false;
 });
+
+async function onGetFileSize(msg: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) {
+    try {
+        if (msg.url.startsWith('file://')) {
+            const response = await fetch(msg.url);
+            const blob = await response.blob();
+            if (blob && blob.size > 0) {
+                sendResponse({ size: blob.size });
+                return;
+            }
+        }
+
+        const response = await fetch(msg.url, { method: 'HEAD' });
+        const size = response.headers.get('content-length');
+        if (size) {
+            sendResponse({ size: parseInt(size, 10) });
+        } else {
+            // Fallback to GET if HEAD does not provide content-length
+            const getResponse = await fetch(msg.url);
+            const blob = await getResponse.blob();
+            if (blob && blob.size > 0) {
+                sendResponse({ size: blob.size });
+            } else {
+                sendResponse({ error: 'No content-length header and zero blob size' });
+            }
+        }
+    } catch (e: any) {
+        logger.error('Failed to get file size:', e);
+        sendResponse({ error: e.message || 'Fetch failed' });
+    }
+}
 
 function onDownloadImages(msg: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) {
     const { title, url, images } = msg;
