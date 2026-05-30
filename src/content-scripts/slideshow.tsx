@@ -18,12 +18,12 @@ const loadingPlaceholder = `data:image/svg+xml;base64,${btoa(`
 </svg>
 `)}`;
 
-async function hashUrl(url: string) {
+async function hashUrl(url: string, prefix: string = 'rating_') {
     const msgUint8 = new TextEncoder().encode(url);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    return `rating_${hashHex}`;
+    return `${prefix}${hashHex}`;
 }
 
 function LazyImage({ src, opacity, className, title, onClick }: any) {
@@ -72,6 +72,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
     const [imageRatings, setImageRatings] = useState<Record<string, number>>({});
     const [ratingFilter, setRatingFilter] = useState<number | 'all' | 'unrated'>('all');
     const imageSizeCache = useRef<Record<string, string>>({});
+    const preloadedImagesRef = useRef<Record<string, HTMLImageElement>>({});
 
     const mainImageRef = useRef<HTMLImageElement>(null);
     const thumbBarRef = useRef<HTMLDivElement>(null);
@@ -121,6 +122,14 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
     }, [shownImages, filteredImages, passesRatingFilter, showToast]);
 
     useEffect(() => {
+        if (shownImages.length > 0) {
+            hashUrl(location.href, 'index_').then(key => {
+                chrome.storage.local.set({ [key]: index });
+            });
+        }
+    }, [index, shownImages.length]);
+
+    useEffect(() => {
         getConfig().then(p => {
             logger.info(p);
             setPrefs(p);
@@ -134,6 +143,15 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                 const indices = Array.from({ length: shownImages.length }, (_, i) => i);
                 setShuffledIndices(indices);
 
+                hashUrl(location.href, 'index_').then(key => {
+                    chrome.storage.local.get([key], (result) => {
+                        const savedIndex = result[key];
+                        if (savedIndex !== undefined && savedIndex < shownImages.length) {
+                            setIndex(savedIndex);
+                        }
+                    });
+                });
+
                 if (p.autoPlayOnStart) {
                     setAutoPlay(true);
                 }
@@ -142,8 +160,17 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                 let dCount = 0;
                 let fCount = 0;
                 shownImages.forEach(src => {
+                    const isLocal = src.startsWith('data:') || src.startsWith('blob:') || src.startsWith('file://');
+                    if (isLocal) {
+                        dCount++;
+                        setDownloadedCount(dCount);
+                        setImageStates(prev => ({ ...prev, [src]: 'ready' }));
+                        return;
+                    }
+
                     setImageStates(prev => ({ ...prev, [src]: 'loading' }));
                     const img = new Image();
+                    preloadedImagesRef.current[src] = img;
                     img.src = src;
                     img.onload = () => {
                         dCount++;
@@ -455,14 +482,17 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                     return next;
                 });
                 chrome.storage.local.remove([key]);
+                showToast('Rating removed');
             } else {
                 setImageRatings(prev => ({ ...prev, [url]: newRating }));
                 chrome.storage.local.set({ [key]: newRating });
+                showToast(`Rated ${newRating} star${newRating > 1 ? 's' : ''}`);
             }
         } catch (e) {
             console.error('Failed to set rating', e);
+            showToast('Failed to save rating');
         }
-    }, [index, shownImages, imageRatings]);
+    }, [index, shownImages, imageRatings, showToast]);
 
     const switchMode = () => {
         if (mode === 'slideshow') {
