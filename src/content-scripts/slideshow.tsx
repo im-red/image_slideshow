@@ -832,12 +832,20 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
 }
 
 // Injection logic
-export function initSlideshow() {
+export async function initSlideshow() {
     if (window.__slideOverlay) {
         removeScaleImageOverlay?.();
         window.__slideOverlay.unmount?.();
         window.__slideOverlay = null;
         document.body.style.overflow = "";
+        return;
+    }
+
+    const prefs = await getConfig();
+    const { shownImages, filteredImages } = collectImage(prefs);
+
+    if (shownImages.length === 0 && filteredImages.length === 0) {
+        alert("No images found on this page.");
         return;
     }
 
