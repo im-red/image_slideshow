@@ -289,3 +289,90 @@ test('Ctrl+C copies image URL to clipboard', async ({ page, background, context 
 
   expect(clipboardText).toBe(imgSrc);
 });
+
+test('rating filter in gallery mode works correctly', async ({ page, background, context }) => {
+  // Grant clipboard permissions for URL copying
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+  await page.goto('https://www.baidu.com');
+  await page.waitForLoadState('networkidle');
+
+  // Trigger the slideshow
+  await background.evaluate(() => {
+    (self as any).__triggerSlideshow();
+  });
+
+  const overlay = page.locator('#slide-overlay');
+  await expect(overlay).toBeVisible();
+
+  // Ensure gallery is visible
+  const gallery = overlay.locator('.slideshow-gallery');
+
+  // Switch to gallery mode
+  const switchModeBtn = overlay.locator('button[title="Switch View"]');
+  await switchModeBtn.click();
+  await expect(gallery).toBeVisible();
+
+  // Check the dropdown exists
+  const filterDropdown = overlay.locator('.slideshow-rating-filter');
+  await expect(filterDropdown).toBeVisible();
+
+  // Initially it's 'all', so all images should be visible. 
+  // Let's count them
+  const initialImagesCount = await gallery.locator('.slideshow-gallery-wrapper').count();
+  const initialFilteredCount = await gallery.locator('.slideshow-gallery-wrapper.filtered').count();
+  const initialShownCount = initialImagesCount - initialFilteredCount;
+  expect(initialImagesCount).toBeGreaterThan(0);
+
+  // Switch back to slideshow mode
+  await switchModeBtn.click();
+
+  // Set the first image's rating to 5 stars by pressing '5'
+  await page.keyboard.press('5');
+  
+  // Wait a bit for storage and state update
+  await page.waitForTimeout(1000);
+
+  // Switch to gallery mode
+  await switchModeBtn.click();
+
+  // Select '5 Stars' filter
+  await filterDropdown.selectOption('5');
+  
+  // Now only 1 image (the one we rated) should be visible
+  const filteredImagesCount = await gallery.locator('.slideshow-gallery-wrapper').count();
+  expect(filteredImagesCount).toBe(1);
+
+  // The single visible image should have a rating badge of 5
+  const ratingBadge = gallery.locator('.slideshow-gallery-rating span');
+  await expect(ratingBadge).toHaveText('5');
+
+  // Select 'Unrated' filter
+  await filterDropdown.selectOption('unrated');
+
+  // The rated image should now be hidden, and filtered images should also be hidden
+  const unratedImagesCount = await gallery.locator('.slideshow-gallery-wrapper').count();
+  expect(unratedImagesCount).toBe(initialShownCount - 1);
+
+  // Test Copy URLs functionality
+  const copyBtn = overlay.locator('button[title="Copy filtered URLs"]');
+  await copyBtn.click();
+
+  // Verify toast appears
+  const toast = overlay.locator('.slideshow-toast');
+  await expect(toast).toBeVisible();
+  await expect(toast).toContainText('Copied');
+
+  // Verify clipboard has the exact number of unrated images
+  const clipboardText = await page.evaluate(async () => {
+    try {
+      return await navigator.clipboard.readText();
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  });
+
+  const copiedUrls = clipboardText ? clipboardText.split('\n').filter(Boolean) : [];
+  expect(copiedUrls.length).toBe(initialShownCount - 1);
+});

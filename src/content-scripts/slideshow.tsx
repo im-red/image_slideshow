@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Play, Shuffle, Pause, RotateCcw, RotateCw, Save, Images, LayoutGrid, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Copy } from 'lucide-react';
+import { Play, Shuffle, Pause, RotateCcw, RotateCw, Save, Images, LayoutGrid, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Copy, Star } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
 
 import { getConfig } from './config';
@@ -17,6 +17,14 @@ const loadingPlaceholder = `data:image/svg+xml;base64,${btoa(`
     </circle>
 </svg>
 `)}`;
+
+async function hashUrl(url: string) {
+    const msgUint8 = new TextEncoder().encode(url);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return `rating_${hashHex}`;
+}
 
 function LazyImage({ src, opacity, className, title, onClick }: any) {
     const { ref, inView } = useInView({
@@ -53,6 +61,8 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
     const [shuffledIndices, setShuffledIndices] = useState<number[]>([]);
     const [currentShuffleIndex, setCurrentShuffleIndex] = useState(0);
     const [currentImageInfo, setCurrentImageInfo] = useState<{ width: number, height: number, size: string } | null>(null);
+    const [imageRatings, setImageRatings] = useState<Record<string, number>>({});
+    const [ratingFilter, setRatingFilter] = useState<number | 'all' | 'unrated'>('all');
     const imageSizeCache = useRef<Record<string, string>>({});
 
     const mainImageRef = useRef<HTMLImageElement>(null);
@@ -60,6 +70,47 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
     const autoPlayTimer = useRef<any>(null);
     const autoPlayStartTime = useRef(0);
     const autoPlayProgressTimer = useRef<any>(null);
+
+    const passesRatingFilter = useCallback((url: string, isOriginalFiltered: boolean = false) => {
+        if (ratingFilter === 'all') return true;
+        if (isOriginalFiltered) return false;
+        const r = imageRatings[url];
+        if (ratingFilter === 'unrated') return !r;
+        return r === ratingFilter;
+    }, [ratingFilter, imageRatings]);
+
+    const filterCounts = React.useMemo(() => {
+        const counts: Record<string, number> = { all: 0, unrated: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        counts.all = shownImages.length + filteredImages.length;
+        shownImages.forEach(url => {
+            const r = imageRatings[url];
+            if (!r) counts.unrated++;
+            else counts[r]++;
+        });
+        return counts;
+    }, [shownImages, filteredImages, imageRatings]);
+
+    const showToast = useCallback((msg: string) => {
+        const id = ++toastIdCounter.current;
+        setToast({ id, msg });
+        if (toastTimerRef.current) {
+            clearTimeout(toastTimerRef.current);
+        }
+        toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+    }, []);
+
+    const copyFilteredUrls = useCallback(() => {
+        const filteredShown = shownImages.filter(url => passesRatingFilter(url, false));
+        const filteredFiltered = filteredImages.filter(url => passesRatingFilter(url, true));
+        const allFiltered = [...filteredShown, ...filteredFiltered];
+        const text = allFiltered.join('\n');
+        navigator.clipboard.writeText(text).then(() => {
+            showToast(`Copied ${allFiltered.length} URLs to clipboard`);
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            showToast('Failed to copy URLs');
+        });
+    }, [shownImages, filteredImages, passesRatingFilter, showToast]);
 
     useEffect(() => {
         getConfig().then(p => {
@@ -123,15 +174,6 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
     const [toast, setToast] = useState<{ id: number, msg: string } | null>(null);
     const toastTimerRef = useRef<any>(null);
     const toastIdCounter = useRef(0);
-
-    const showToast = useCallback((msg: string) => {
-        const id = ++toastIdCounter.current;
-        setToast({ id, msg });
-        if (toastTimerRef.current) {
-            clearTimeout(toastTimerRef.current);
-        }
-        toastTimerRef.current = setTimeout(() => setToast(null), 3000);
-    }, []);
 
     const showImage = useCallback((i: number) => {
         if (shownImages.length === 0) return;
@@ -225,6 +267,30 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
+
+    useEffect(() => {
+        const fetchAllRatings = async () => {
+            const allImages = [...shownImages, ...filteredImages];
+            if (allImages.length === 0) return;
+            const keysToUrl: Record<string, string> = {};
+            const keys = await Promise.all(allImages.map(async (url) => {
+                const key = await hashUrl(url);
+                keysToUrl[key] = url;
+                return key;
+            }));
+
+            chrome.storage.local.get(keys, (result) => {
+                const newRatings: Record<string, number> = {};
+                for (const key of Object.keys(result)) {
+                    if (keysToUrl[key]) {
+                        newRatings[keysToUrl[key]] = result[key];
+                    }
+                }
+                setImageRatings(newRatings);
+            });
+        };
+        fetchAllRatings();
+    }, [shownImages, filteredImages]);
 
     useEffect(() => {
         if (mode !== 'slideshow' || shownImages.length === 0) return;
@@ -336,6 +402,28 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
         });
     };
 
+    const handleRatingChange = useCallback(async (newRating: number) => {
+        const url = shownImages[index];
+        if (!url) return;
+        try {
+            const key = await hashUrl(url);
+            const currentRating = imageRatings[url];
+            if (newRating === 0 || currentRating === newRating) {
+                setImageRatings(prev => {
+                    const next = { ...prev };
+                    delete next[url];
+                    return next;
+                });
+                chrome.storage.local.remove([key]);
+            } else {
+                setImageRatings(prev => ({ ...prev, [url]: newRating }));
+                chrome.storage.local.set({ [key]: newRating });
+            }
+        } catch (e) {
+            console.error('Failed to set rating', e);
+        }
+    }, [index, shownImages, imageRatings]);
+
     const switchMode = () => {
         if (mode === 'slideshow') {
             setMode('gallery');
@@ -400,6 +488,12 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                 return;
             }
 
+            if (e.key >= '0' && e.key <= '5') {
+                const ratingValue = parseInt(e.key, 10);
+                handleRatingChange(ratingValue);
+                return;
+            }
+
             if (e.code === 'Space') {
                 if (mode === 'slideshow') autoPlay ? stopAutoPlay() : startAutoPlay(isRandom);
                 return;
@@ -416,7 +510,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
 
         window.addEventListener('keydown', handleKeyDown, true);
         return () => window.removeEventListener('keydown', handleKeyDown, true);
-    }, [mode, autoPlay, isRandom, index, shownImages, showImage, unmount, showToast]);
+    }, [mode, autoPlay, isRandom, index, shownImages, showImage, unmount, showToast, handleRatingChange]);
 
     if (!prefs) return null;
 
@@ -438,8 +532,32 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
             <style>{slideshowStyles}</style>
             {/* Top Area */}
             <div className="slideshow-top-bar">
-                <div className="slideshow-index-text">
-                    {mode === 'gallery' ? `${shownImages.length}${filteredImages.length ? `(+${filteredImages.length} filtered)` : ''}` : `${index + 1} / ${shownImages.length}`}
+                <div className="slideshow-top-center">
+                    {mode !== 'gallery' && (
+                        <div className="slideshow-index-text">
+                            {`${index + 1} / ${shownImages.length}`}
+                        </div>
+                    )}
+                    {mode === 'gallery' && (
+                        <>
+                            <select
+                                className="slideshow-rating-filter"
+                                value={ratingFilter}
+                                onChange={(e) => setRatingFilter(e.target.value === 'all' || e.target.value === 'unrated' ? e.target.value as any : Number(e.target.value))}
+                            >
+                                <option value="all">All ({shownImages.length}{filteredImages.length ? ` + ${filteredImages.length} filtered` : ''})</option>
+                                <option value="unrated">Unrated ({filterCounts.unrated})</option>
+                                <option value={1}>1 Star ({filterCounts[1]})</option>
+                                <option value={2}>2 Stars ({filterCounts[2]})</option>
+                                <option value={3}>3 Stars ({filterCounts[3]})</option>
+                                <option value={4}>4 Stars ({filterCounts[4]})</option>
+                                <option value={5}>5 Stars ({filterCounts[5]})</option>
+                            </select>
+                            <button onClick={copyFilteredUrls} className="slideshow-btn" title="Copy filtered URLs">
+                                <Copy size={16} />
+                            </button>
+                        </>
+                    )}
                 </div>
 
                 <div className="slideshow-controls">
@@ -506,20 +624,36 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                 {mode === 'gallery' && (
                     <div className="slideshow-gallery">
                         {shownImages.map((src, i) => {
+                            if (!passesRatingFilter(src, false)) return null;
                             const { src: thumbSrc, opacity } = getThumbProps(src, false);
+                            const rating = imageRatings[src];
                             return (
                                 <div key={i} className="slideshow-gallery-wrapper" onClick={() => switchToSlideshow(i)} title={src}>
                                     <LazyImage src={thumbSrc} opacity={opacity} className="slideshow-gallery-img" />
                                     <div className="slideshow-gallery-index">{i + 1}</div>
+                                    {rating && (
+                                        <div className="slideshow-gallery-rating">
+                                            <Star size={12} fill="#FFD700" color="#FFD700" />
+                                            <span>{rating}</span>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
                         {filteredImages.map((src, i) => {
+                            if (!passesRatingFilter(src, true)) return null;
                             const { src: thumbSrc, opacity } = getThumbProps(src, true);
+                            const rating = imageRatings[src];
                             return (
                                 <div key={`f-${i}`} className="slideshow-gallery-wrapper filtered" title={src}>
                                     <LazyImage src={thumbSrc} opacity={opacity} className="slideshow-gallery-img filtered" />
                                     <div className="slideshow-gallery-index">{shownImages.length + i + 1}</div>
+                                    {rating && (
+                                        <div className="slideshow-gallery-rating">
+                                            <Star size={12} fill="#FFD700" color="#FFD700" />
+                                            <span>{rating}</span>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
@@ -546,6 +680,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                             <div ref={thumbBarRef} className="slideshow-thumb-bar">
                                 {shownImages.map((src, i) => {
                                     const { src: thumbSrc, opacity } = getThumbProps(src, false);
+                                    const rating = imageRatings[src];
                                     return (
                                         <div key={i} className="slideshow-thumb-wrapper" onClick={() => showImage(i)} title={src}>
                                             <LazyImage
@@ -554,6 +689,12 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                                                 className={`slideshow-thumb-img ${i === index ? 'active' : 'inactive'}`}
                                             />
                                             <div className="slideshow-thumb-index">{i + 1}</div>
+                                            {rating && (
+                                                <div className="slideshow-thumb-rating">
+                                                    <Star size={10} fill="#FFD700" color="#FFD700" />
+                                                    <span>{rating}</span>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -568,6 +709,29 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
             {mode === 'slideshow' && shownImages.length > 0 && (
                 <div className="slideshow-bottom-info-bar">
                     <div className="slideshow-info-left">
+                        <div className="slideshow-rating">
+                            {[1, 2, 3, 4, 5].map((starIndex) => {
+                                const currentRating = imageRatings[shownImages[index]] || null;
+                                return (
+                                    <button
+                                        key={starIndex}
+                                        className="slideshow-btn"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRatingChange(starIndex);
+                                        }}
+                                        title={`Rate ${starIndex} star${starIndex > 1 ? 's' : ''}`}
+                                        style={{ padding: '2px' }}
+                                    >
+                                        <Star
+                                            size={14}
+                                            fill={currentRating && currentRating >= starIndex ? '#FFD700' : 'none'}
+                                            color={currentRating && currentRating >= starIndex ? '#FFD700' : 'currentColor'}
+                                        />
+                                    </button>
+                                );
+                            })}
+                        </div>
                         <span className="slideshow-info-geometry">
                             {currentImageInfo ? `${currentImageInfo.width} × ${currentImageInfo.height} px` : '...'}
                         </span>
