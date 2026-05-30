@@ -44,6 +44,14 @@ function LazyImage({ src, opacity, className, title, onClick }: any) {
     );
 }
 
+function formatSize(bytes: number) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 function SlideshowApp({ unmount }: { unmount: () => void }) {
     const [prefs, setPrefs] = useState<any>(null);
     const [shownImages, setShownImages] = useState<string[]>([]);
@@ -260,13 +268,45 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
         }
     }, [autoPlay, autoPlayTick, prefs]);
 
-    const formatSize = (bytes: number) => {
-        if (bytes === 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    };
+    useEffect(() => {
+        let isCancelled = false;
+        const cacheAllSizes = async () => {
+            const allImages = [...shownImages, ...filteredImages];
+            for (const url of allImages) {
+                if (isCancelled) break;
+                if (imageSizeCache.current[url]) continue;
+
+                if (url.startsWith('http')) {
+                    try {
+                        let sizeStr = 'Unknown';
+                        const entries = performance.getEntriesByName(url) as PerformanceResourceTiming[];
+                        if (entries.length > 0 && (entries[0].decodedBodySize || entries[0].transferSize)) {
+                            const size = entries[0].decodedBodySize || entries[0].transferSize;
+                            if (size > 0) sizeStr = formatSize(size);
+                        }
+
+                        if (sizeStr === 'Unknown' || sizeStr === '0 B') {
+                            const response = await chrome.runtime.sendMessage({ type: 'getFileSize', url });
+                            if (response && response.size) {
+                                sizeStr = formatSize(response.size);
+                            }
+                        }
+
+                        if (sizeStr !== 'Unknown' && sizeStr !== '0 B') {
+                            imageSizeCache.current[url] = sizeStr;
+                        }
+                    } catch (e) {
+                        console.error('Failed to pre-fetch image size', e);
+                    }
+                }
+            }
+        };
+
+        cacheAllSizes();
+        return () => {
+            isCancelled = true;
+        };
+    }, [shownImages, filteredImages]);
 
     useEffect(() => {
         const fetchAllRatings = async () => {
