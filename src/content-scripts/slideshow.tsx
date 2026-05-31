@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Play, Shuffle, Pause, RotateCcw, RotateCw, Save, Images, LayoutGrid, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Copy, Star } from 'lucide-react';
+import { Play, Shuffle, Pause, RotateCcw, RotateCw, Save, Images, LayoutGrid, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Copy, Star, RefreshCw } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
 
 import { getConfig } from './config';
@@ -54,6 +54,8 @@ function formatSize(bytes: number) {
 
 function SlideshowApp({ unmount }: { unmount: () => void }) {
     const [prefs, setPrefs] = useState<any>(null);
+    const [allShownImages, setAllShownImages] = useState<string[]>([]);
+    const [allFilteredImages, setAllFilteredImages] = useState<string[]>([]);
     const [shownImages, setShownImages] = useState<string[]>([]);
     const [filteredImages, setFilteredImages] = useState<string[]>([]);
     const [mode, setMode] = useState<'slideshow' | 'gallery'>('slideshow');
@@ -80,24 +82,16 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
     const autoPlayStartTime = useRef(0);
     const autoPlayProgressTimer = useRef<any>(null);
 
-    const passesRatingFilter = useCallback((url: string, isOriginalFiltered: boolean = false) => {
-        if (ratingFilter === 'all') return true;
-        if (isOriginalFiltered) return false;
-        const r = imageRatings[url];
-        if (ratingFilter === 'unrated') return !r;
-        return r === ratingFilter;
-    }, [ratingFilter, imageRatings]);
-
     const filterCounts = React.useMemo(() => {
         const counts: Record<string, number> = { all: 0, unrated: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-        counts.all = shownImages.length + filteredImages.length;
-        shownImages.forEach(url => {
+        counts.all = allShownImages.length + allFilteredImages.length;
+        allShownImages.forEach(url => {
             const r = imageRatings[url];
             if (!r) counts.unrated++;
             else counts[r]++;
         });
         return counts;
-    }, [shownImages, filteredImages, imageRatings]);
+    }, [allShownImages, allFilteredImages, imageRatings]);
 
     const showToast = useCallback((msg: string) => {
         const id = ++toastIdCounter.current;
@@ -109,9 +103,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
     }, []);
 
     const copyFilteredUrls = useCallback(() => {
-        const filteredShown = shownImages.filter(url => passesRatingFilter(url, false));
-        const filteredFiltered = filteredImages.filter(url => passesRatingFilter(url, true));
-        const allFiltered = [...filteredShown, ...filteredFiltered];
+        const allFiltered = [...shownImages, ...filteredImages];
         const text = allFiltered.join('\n');
         navigator.clipboard.writeText(text).then(() => {
             showToast(`Copied ${allFiltered.length} URLs to clipboard`);
@@ -119,7 +111,61 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
             console.error('Failed to copy:', err);
             showToast('Failed to copy URLs');
         });
-    }, [shownImages, filteredImages, passesRatingFilter, showToast]);
+    }, [shownImages, filteredImages, showToast]);
+
+    const applyFilter = useCallback((newFilter: any) => {
+        logger.info(`Applying filter: ${newFilter}`);
+        setRatingFilter(newFilter);
+
+        let newShown: string[] = [];
+        let newFiltered: string[] = [];
+
+        if (newFilter === 'all') {
+            newShown = allShownImages;
+            newFiltered = allFilteredImages;
+        } else {
+            const passes = (url: string, isOriginalFiltered: boolean) => {
+                if (isOriginalFiltered) return false;
+                const r = imageRatings[url];
+                if (newFilter === 'unrated') return !r;
+                return r === newFilter;
+            };
+            newShown = allShownImages.filter(url => passes(url, false));
+            newFiltered = allFilteredImages.filter(url => passes(url, true));
+        }
+
+        setShownImages(newShown);
+        setFilteredImages(newFiltered);
+        setCurrentRotation(0);
+
+        if (newShown.length === 0) {
+            setIndex(0);
+        } else if (index >= newShown.length) {
+            setIndex(newShown.length - 1);
+        } else {
+            const currentUrl = shownImages[index];
+            const newIndex = newShown.indexOf(currentUrl);
+            if (newIndex !== -1) {
+                setIndex(newIndex);
+            } else {
+                setIndex(0);
+            }
+        }
+
+        const indices = Array.from({ length: newShown.length }, (_, i) => i);
+        for (let i = indices.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [indices[i], indices[j]] = [indices[j], indices[i]];
+        }
+        setShuffledIndices(indices);
+        setCurrentShuffleIndex(0);
+    }, [allShownImages, allFilteredImages, imageRatings, shownImages, index]);
+
+    const handleFilterChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+        const val = e.target.value;
+        const newFilter = val === 'all' || val === 'unrated' ? val as any : Number(val);
+        applyFilter(newFilter);
+    }, [applyFilter]);
 
     useEffect(() => {
         if (shownImages.length > 0 && shownImages[index]) {
@@ -136,21 +182,23 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
         getConfig().then(p => {
             logger.info(p);
             setPrefs(p);
-            const { shownImages, filteredImages } = collectImage(p);
-            setShownImages(shownImages);
-            setFilteredImages(filteredImages);
+            const { shownImages: collectedShown, filteredImages: collectedFiltered } = collectImage(p);
+            setAllShownImages(collectedShown);
+            setAllFilteredImages(collectedFiltered);
+            setShownImages(collectedShown);
+            setFilteredImages(collectedFiltered);
 
-            if (shownImages.length === 0) {
+            if (collectedShown.length === 0) {
                 setMode('gallery');
             } else {
-                const indices = Array.from({ length: shownImages.length }, (_, i) => i);
+                const indices = Array.from({ length: collectedShown.length }, (_, i) => i);
                 setShuffledIndices(indices);
 
                 hashUrl(location.href, 'index_').then(pageKey => {
                     chrome.storage.local.get([pageKey], async (result) => {
                         const savedImgHash = result[pageKey];
                         if (savedImgHash) {
-                            const hashes = await Promise.all(shownImages.map(url => hashUrl(url, 'img_')));
+                            const hashes = await Promise.all(collectedShown.map(url => hashUrl(url, 'img_')));
                             const foundIndex = hashes.indexOf(savedImgHash);
                             if (foundIndex !== -1) {
                                 setIndex(foundIndex);
@@ -166,7 +214,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                 // Preload images
                 let dCount = 0;
                 let fCount = 0;
-                shownImages.forEach(src => {
+                collectedShown.forEach(src => {
                     const isLocal = src.startsWith('data:') || src.startsWith('blob:') || src.startsWith('file://');
                     if (isLocal) {
                         dCount++;
@@ -305,7 +353,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
     useEffect(() => {
         let isCancelled = false;
         const cacheAllSizes = async () => {
-            const allImages = [...shownImages, ...filteredImages];
+            const allImages = [...allShownImages, ...allFilteredImages];
             for (const url of allImages) {
                 if (isCancelled) break;
                 if (imageSizeCache.current[url]) continue;
@@ -340,11 +388,11 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
         return () => {
             isCancelled = true;
         };
-    }, [shownImages, filteredImages]);
+    }, [allShownImages, allFilteredImages]);
 
     useEffect(() => {
         const fetchAllRatings = async () => {
-            const allImages = [...shownImages, ...filteredImages];
+            const allImages = [...allShownImages, ...allFilteredImages];
             if (allImages.length === 0) return;
             const keysToUrl: Record<string, string> = {};
             const keys = await Promise.all(allImages.map(async (url) => {
@@ -364,7 +412,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
             });
         };
         fetchAllRatings();
-    }, [shownImages, filteredImages]);
+    }, [allShownImages, allFilteredImages]);
 
     useEffect(() => {
         if (mode !== 'slideshow' || shownImages.length === 0) return;
@@ -549,7 +597,7 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.code === 'F12' || e.code === 'F11') return;
 
-            if (e.key === 'ArrowUp' || (e.ctrlKey || e.metaKey) && (e.code === 'KeyC' || e.key === 'c' || e.key === 'C')) {
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || (e.ctrlKey || e.metaKey) && (e.code === 'KeyC' || e.key === 'c' || e.key === 'C')) {
                 const currentImage = shownImages[index];
                 if (currentImage) {
                     copyImageUrl(currentImage);
@@ -615,25 +663,30 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                             {`${index + 1} / ${shownImages.length}`}
                         </div>
                     )}
-                    {mode === 'gallery' && (
-                        <>
-                            <select
-                                className="slideshow-rating-filter"
-                                value={ratingFilter}
-                                onChange={(e) => setRatingFilter(e.target.value === 'all' || e.target.value === 'unrated' ? e.target.value as any : Number(e.target.value))}
-                            >
-                                <option value="all">All ({shownImages.length}{filteredImages.length ? ` + ${filteredImages.length} filtered` : ''})</option>
-                                <option value="unrated">Unrated ({filterCounts.unrated})</option>
-                                <option value={1}>1 Star ({filterCounts[1]})</option>
-                                <option value={2}>2 Stars ({filterCounts[2]})</option>
-                                <option value={3}>3 Stars ({filterCounts[3]})</option>
-                                <option value={4}>4 Stars ({filterCounts[4]})</option>
-                                <option value={5}>5 Stars ({filterCounts[5]})</option>
-                            </select>
-                            <button onClick={copyFilteredUrls} className="slideshow-btn" title="Copy filtered URLs">
-                                <Copy size={16} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <select
+                            className="slideshow-rating-filter"
+                            value={ratingFilter}
+                            onChange={handleFilterChange}
+                        >
+                            <option value="all">All ({allShownImages.length}{allFilteredImages.length ? ` + ${allFilteredImages.length} filtered` : ''})</option>
+                            <option value="unrated">Unrated ({filterCounts.unrated})</option>
+                            <option value={1}>1 Star ({filterCounts[1]})</option>
+                            <option value={2}>2 Stars ({filterCounts[2]})</option>
+                            <option value={3}>3 Stars ({filterCounts[3]})</option>
+                            <option value={4}>4 Stars ({filterCounts[4]})</option>
+                            <option value={5}>5 Stars ({filterCounts[5]})</option>
+                        </select>
+                        {mode !== 'gallery' && (
+                            <button onClick={() => applyFilter(ratingFilter)} className="slideshow-btn" title="Refresh current filter">
+                                <RefreshCw size={16} />
                             </button>
-                        </>
+                        )}
+                    </div>
+                    {mode === 'gallery' && (
+                        <button onClick={copyFilteredUrls} className="slideshow-btn" title="Copy filtered URLs">
+                            <Copy size={16} />
+                        </button>
                     )}
                 </div>
 
@@ -701,7 +754,6 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                 {mode === 'gallery' && (
                     <div className="slideshow-gallery">
                         {shownImages.map((src, i) => {
-                            if (!passesRatingFilter(src, false)) return null;
                             const { src: thumbSrc, opacity } = getThumbProps(src, false);
                             const rating = imageRatings[src];
                             return (
@@ -718,7 +770,6 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
                             );
                         })}
                         {filteredImages.map((src, i) => {
-                            if (!passesRatingFilter(src, true)) return null;
                             const { src: thumbSrc, opacity } = getThumbProps(src, true);
                             const rating = imageRatings[src];
                             return (
