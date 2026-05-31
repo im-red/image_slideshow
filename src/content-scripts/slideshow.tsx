@@ -845,7 +845,30 @@ export async function initSlideshow() {
     const { shownImages, filteredImages } = collectImage(prefs);
 
     if (shownImages.length === 0 && filteredImages.length === 0) {
-        alert("No images found on this page.");
+        const popup = document.createElement('div');
+        popup.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-family: sans-serif;
+            font-size: 14px;
+            z-index: 2147483647;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            text-align: center;
+        `;
+        popup.textContent = "No images found on this page.";
+        document.body.appendChild(popup);
+
+        setTimeout(() => {
+            popup.style.opacity = '0';
+            setTimeout(() => popup.remove(), 300);
+        }, 3000);
         return;
     }
 
