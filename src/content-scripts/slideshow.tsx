@@ -284,7 +284,6 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
 
         const newIndex = i;
         setIndex(newIndex);
-        setCurrentRotation(0);
 
         if (autoPlay) {
             autoPlayStartTime.current = performance.now();
