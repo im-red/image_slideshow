@@ -309,7 +309,7 @@
     position: absolute;
     bottom: 0;
     left: 0;
-    height: 1px;
+    height: 2px;
     background: limegreen;
     z-index: 200;
 }
