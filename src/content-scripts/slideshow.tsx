@@ -615,6 +615,9 @@ function SlideshowApp({ unmount }: { unmount: () => void }) {
             if (e.key >= '0' && e.key <= '5') {
                 const ratingValue = parseInt(e.key, 10);
                 handleRatingChange(ratingValue);
+                if (e.getModifierState('CapsLock')) {
+                    showImage(index + 1);
+                }
                 return;
             }
 
